@@ -48,7 +48,7 @@ export default function HomeScreen({ user }: HomeScreenProps) {
             <View style={styles.cardIconContainer}>
               <Ionicons name="book" size={28} color="#fff" />
             </View>
-            <Text style={styles.cardTitle}>Bhagavad Gita</Text>
+            <Text style={styles.cardTitle}>Gita for Youth Leadership</Text>
           </View>
           <View style={styles.cardContent}>
             <View style={styles.listItem}>
