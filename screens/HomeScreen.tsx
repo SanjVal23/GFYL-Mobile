@@ -76,7 +76,7 @@ export default function HomeScreen({ user }: HomeScreenProps) {
               <Ionicons name="chatbubbles" size={28} color="#fff" />
             </View>
             <View>
-              <Text style={styles.cardTitle}>AI Buddy</Text>
+              <Text style={styles.cardTitle}>Krishly AI</Text>
               <Text style={styles.cardSubtitle}>Your AI companion for spiritual guidance</Text>
             </View>
           </View>
@@ -92,8 +92,8 @@ export default function HomeScreen({ user }: HomeScreenProps) {
               <Ionicons name="school" size={28} color="#fff" />
             </View>
             <View>
-              <Text style={styles.cardTitle}>Courses</Text>
-              <Text style={styles.cardSubtitle}>Structured learning paths</Text>
+              <Text style={styles.cardTitle}>Marketing</Text>
+              <Text style={styles.cardSubtitle}>GFYL Marketing Content</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -108,8 +108,8 @@ export default function HomeScreen({ user }: HomeScreenProps) {
               <Ionicons name="help-circle" size={28} color="#fff" />
             </View>
             <View>
-              <Text style={styles.cardTitle}>Quizzes</Text>
-              <Text style={styles.cardSubtitle}>Test your knowledge</Text>
+              <Text style={styles.cardTitle}>Storybooks</Text>
+              <Text style={styles.cardSubtitle}>Learn with books!</Text>
             </View>
           </View>
         </TouchableOpacity>
@@ -124,11 +124,31 @@ export default function HomeScreen({ user }: HomeScreenProps) {
               <Ionicons name="play-circle" size={28} color="#fff" />
             </View>
             <View>
-              <Text style={styles.cardTitle}>Videos</Text>
-              <Text style={styles.cardSubtitle}>Watch spiritual teachings</Text>
+              <Text style={styles.cardTitle}>KrishTok</Text>
+              <Text style={styles.cardSubtitle}>Tiktok? Nah. KrishTok</Text>
             </View>
           </View>
         </TouchableOpacity>
+
+
+{/* Guru Card */}
+<TouchableOpacity
+  style={styles.card}
+  onPress={() => navigation.navigate('Guru')}
+>
+  <View style={styles.cardHeader}>
+    <View style={[styles.cardIconContainer, { backgroundColor: '#34d399' }]}>
+      <Ionicons name="person-circle-outline" size={28} color="#fff" />
+    </View>
+    <View>
+      <Text style={styles.cardTitle}>Our Guru</Text>
+      <Text style={styles.cardSubtitle}>Krishna & Maharaj Ji by your side</Text>
+    </View>
+  </View>
+</TouchableOpacity>
+
+
+
 
         {/* Community Forums */}
         <TouchableOpacity
@@ -140,7 +160,7 @@ export default function HomeScreen({ user }: HomeScreenProps) {
               <Ionicons name="people" size={28} color="#fff" />
             </View>
             <View>
-              <Text style={styles.cardTitle}>Community Forums</Text>
+              <Text style={styles.cardTitle}>Meditation</Text>
             </View>
           </View>
         </TouchableOpacity>

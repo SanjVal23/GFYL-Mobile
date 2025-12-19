@@ -15,27 +15,27 @@ import { Course } from '../types';
 const coursesData: Course[] = [
   {
     id: '1',
-    title: 'Bhagavad Gita - Introduction',
-    description: 'Understanding the context',
-    duration: '2 hours',
+    title: 'Gita Youth Intro Campaign',
+    description: 'Introducing Gita to young leaders',
+    duration: '2 weeks',
     lessons: 8,
     progress: 75,
-    icon: 'book',
+    icon: 'megaphone',
   },
   {
     id: '2',
-    title: 'Bhagavad Gita - Chapter 2',
-    description: 'Reflections on Chapter 2',
-    duration: '3 hours',
+    title: 'Chapter 2 Engagement',
+    description: 'Youth reflections and discussions',
+    duration: '3 weeks',
     lessons: 12,
     progress: 40,
-    icon: 'book',
+    icon: 'people',
   },
   {
     id: '3',
-    title: 'Daily Reflections',
-    description: 'Daily inspiration',
-    duration: '1 hour',
+    title: 'Daily Inspiration Push',
+    description: 'Short daily campaigns for engagement',
+    duration: '1 week',
     lessons: 5,
     progress: 100,
     icon: 'sunny',
@@ -43,21 +43,21 @@ const coursesData: Course[] = [
   },
   {
     id: '4',
-    title: 'Ramayana Stories',
-    description: 'Epic tales of Lord Rama',
-    duration: '4 hours',
+    title: 'Ramayana Leadership Stories',
+    description: 'Stories for youth mentoring',
+    duration: '4 weeks',
     lessons: 15,
     progress: 0,
-    icon: 'library',
+    icon: 'school',
   },
   {
     id: '5',
-    title: 'Festival Prep',
-    description: 'Janmashtami and more',
-    duration: '2 hours',
+    title: 'Festival Awareness Campaign',
+    description: 'Janmashtami outreach and more',
+    duration: '2 weeks',
     lessons: 6,
     progress: 0,
-    icon: 'sparkles',
+    icon: 'share-social',
   },
 ];
 
@@ -68,8 +68,10 @@ export default function CoursesScreen() {
   return (
     <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Courses</Text>
-        <Text style={styles.headerSubtitle}>5 courses available</Text>
+        <Text style={styles.headerTitle}>Marketing</Text>
+        <Text style={styles.headerSubtitle}>
+          Gita for Youth Leadership · Outreach & Campaigns
+        </Text>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -87,16 +89,16 @@ export default function CoursesScreen() {
               <Text style={styles.courseDescription}>{course.description}</Text>
               <View style={styles.courseStats}>
                 <View style={styles.stat}>
-                  <Ionicons name="time-outline" size={16} color="#94a3b8" />
+                  <Ionicons name="calendar-outline" size={16} color="#94a3b8" />
                   <Text style={styles.statText}>{course.duration}</Text>
                 </View>
                 <View style={styles.stat}>
-                  <Ionicons name="book-outline" size={16} color="#94a3b8" />
-                  <Text style={styles.statText}>{course.lessons} lessons</Text>
+                  <Ionicons name="people-outline" size={16} color="#94a3b8" />
+                  <Text style={styles.statText}>{course.lessons} outreach channels</Text>
                 </View>
               </View>
               <View style={styles.progressContainer}>
-                <Text style={styles.progressLabel}>Progress</Text>
+                <Text style={styles.progressLabel}>Campaign Progress</Text>
                 <Text style={styles.progressPercentage}>{course.progress}%</Text>
               </View>
               <View style={styles.progressBar}>
@@ -117,7 +119,7 @@ export default function CoursesScreen() {
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* Course Detail Modal */}
+      {/* Campaign Detail Modal */}
       <Modal
         visible={selectedCourse !== null}
         transparent
@@ -142,19 +144,19 @@ export default function CoursesScreen() {
               </Text>
               <View style={styles.modalStats}>
                 <View style={styles.modalStat}>
-                  <Ionicons name="time-outline" size={20} color="#94a3b8" />
+                  <Ionicons name="calendar-outline" size={20} color="#94a3b8" />
                   <Text style={styles.modalStatText}>{selectedCourse?.duration}</Text>
                 </View>
                 <View style={styles.modalStat}>
-                  <Ionicons name="book-outline" size={20} color="#94a3b8" />
+                  <Ionicons name="people-outline" size={20} color="#94a3b8" />
                   <Text style={styles.modalStatText}>
-                    {selectedCourse?.lessons} lessons
+                    {selectedCourse?.lessons} outreach channels
                   </Text>
                 </View>
               </View>
 
               <View style={styles.modalProgress}>
-                <Text style={styles.modalProgressLabel}>Your Progress</Text>
+                <Text style={styles.modalProgressLabel}>Execution Status</Text>
                 <Text style={styles.modalProgressPercentage}>
                   {selectedCourse?.progress}%
                 </Text>
@@ -169,8 +171,9 @@ export default function CoursesScreen() {
               </View>
 
               <Text style={styles.modalInfo}>
-                This course will guide you through fundamental concepts and provide
-                deep insights into spiritual teachings.
+                This marketing campaign focuses on introducing the Bhagavad Gita to
+                youth through leadership themes, community engagement, and
+                value-based storytelling.
               </Text>
 
               <TouchableOpacity
@@ -184,11 +187,11 @@ export default function CoursesScreen() {
                   });
                 }}
               >
-                <Text style={styles.continueButtonText}>Continue Course</Text>
+                <Text style={styles.continueButtonText}>View Campaign Plan</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.syllabusButton}>
-                <Text style={styles.syllabusButtonText}>View Syllabus</Text>
+                <Text style={styles.syllabusButtonText}>Campaign Assets & Messaging</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
