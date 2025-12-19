@@ -1,20 +1,32 @@
+import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { AuthScreen } from './screens/AuthScreen';
+import AppNavigator from './navigation/AppNavigator';
+import { User } from './types';
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+
+  const handleLogin = (userData: User) => {
+    setUser(userData);
+  };
+
+  if (!user) {
+    return (
+      <>
+        <AuthScreen onLogin={handleLogin} />
+        <StatusBar style="light" />
+      </>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <>
+      <NavigationContainer>
+        <AppNavigator user={user} />
+      </NavigationContainer>
+      <StatusBar style="light" />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
