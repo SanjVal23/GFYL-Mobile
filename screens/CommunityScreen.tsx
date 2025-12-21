@@ -174,29 +174,27 @@ export default function CommunityScreen() {
   };
 
   const addReply = (postId: string, commentId: string) => {
-    if (replyText.trim()) {
-      setComments({
-        ...comments,
-        [postId]: comments[postId]?.map(c =>
-          c.id === commentId
-            ? {
-                ...c,
-                replies: [
-                  ...c.replies,
-                  {
-                    id: Date.now().toString(),
-                    author: 'Demo User',
-                    text: replyText,
-                    timestamp: 'Just now',
-                  },
-                ],
-              }
-            : c
-        ) || [],
-      });
-      setReplyText('');
-      setReplyingTo(null);
-    }
+    if (!replyText.trim()) return;
+    const newReply = {
+      id: Date.now().toString(),
+      author: 'Demo User',
+      text: replyText,
+      timestamp: 'Just now',
+    };
+
+    // Use functional update to avoid stale state issues
+    setComments(prev => {
+      const postComments = prev[postId] ?? [];
+      const updated = postComments.map(c =>
+        c.id === commentId ? { ...c, replies: [...c.replies, newReply] } : c
+      );
+      return { ...prev, [postId]: updated };
+    });
+
+    console.log('Added reply', { postId, commentId, newReply });
+    setReplyText('');
+    setReplyingTo(null);
+    // Also update posts comment count if needed (kept unchanged here)
   };
 
   return (

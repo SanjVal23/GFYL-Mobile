@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +34,11 @@ export default function AIBuddyScreen() {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackTargetId, setFeedbackTargetId] = useState<string | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState<'up' | 'down' | null>(null);
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
+  const [otherFeedback, setOtherFeedback] = useState('');
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -131,6 +137,52 @@ export default function AIBuddyScreen() {
               >
                 {message.text}
               </Text>
+              {/* Feedback controls for AI responses */}
+              {!message.isUser && (
+                <View style={styles.feedbackRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.feedbackButton,
+                      message.id === feedbackTargetId && feedbackRating === 'up' && styles.feedbackButtonActiveUp,
+                    ]}
+                    onPress={() => {
+                      setFeedbackTargetId(message.id);
+                      setFeedbackRating('up');
+                      setFeedbackVisible(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="thumbs-up"
+                      size={16}
+                      color={message.id === feedbackTargetId && feedbackRating === 'up' ? '#fff' : '#94a3b8'}
+                      style={styles.feedbackIcon}
+                    />
+                    <Text style={[styles.feedbackCount, message.id === feedbackTargetId && feedbackRating === 'up' && styles.feedbackCountActive]}> </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.feedbackButton,
+                      message.id === feedbackTargetId && feedbackRating === 'down' && styles.feedbackButtonActiveDown,
+                    ]}
+                    onPress={() => {
+                      setFeedbackTargetId(message.id);
+                      setFeedbackRating('down');
+                      setFeedbackVisible(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="thumbs-down"
+                      size={16}
+                      color={message.id === feedbackTargetId && feedbackRating === 'down' ? '#fff' : '#94a3b8'}
+                      style={styles.feedbackIcon}
+                    />
+                    <Text style={[styles.feedbackCount, message.id === feedbackTargetId && feedbackRating === 'down' && styles.feedbackCountActive]}> </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))}
           {isLoading && (
@@ -167,6 +219,7 @@ export default function AIBuddyScreen() {
             placeholder="Ask me anything..."
             placeholderTextColor="#94a3b8"
             value={inputText}
+      
             onChangeText={setInputText}
             multiline
           />
@@ -187,6 +240,81 @@ export default function AIBuddyScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Feedback Modal */}
+      <Modal
+        visible={feedbackVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setFeedbackVisible(false);
+          setFeedbackTargetId(null);
+          setFeedbackRating(null);
+          setSelectedReasons([]);
+          setOtherFeedback('');
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Why did you choose this rating? (optional)</Text>
+            <View style={styles.reasonsRow}>
+              {['Factually correct','Easy to understand','Informative','Creative / Interesting','Other'].map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={[styles.reasonTag, selectedReasons.includes(r) && styles.reasonTagActive]}
+                  onPress={() => {
+                    if (selectedReasons.includes(r)) setSelectedReasons(prev => prev.filter(x => x !== r));
+                    else setSelectedReasons(prev => [...prev, r]);
+                    if (r === 'Other') setOtherFeedback('');
+                  }}
+                >
+                  <Text style={[styles.reasonText, selectedReasons.includes(r) && styles.reasonTextActive]}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.otherInput}
+              placeholder="Provide additional feedback"
+              placeholderTextColor="#94a3b8"
+              multiline
+              value={otherFeedback}
+              onChangeText={setOtherFeedback}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.submitButton, !feedbackRating && styles.submitButtonDisabled]}
+                onPress={() => {
+                  // Submit feedback - for now log to console and close modal
+                  console.log('Feedback submitted', {
+                    messageId: feedbackTargetId,
+                    rating: feedbackRating,
+                    reasons: selectedReasons,
+                    other: otherFeedback,
+                  });
+                  setFeedbackVisible(false);
+                  setFeedbackTargetId(null);
+                  setFeedbackRating(null);
+                  setSelectedReasons([]);
+                  setOtherFeedback('');
+                }}
+                disabled={!feedbackRating}
+              >
+                <Text style={styles.submitButtonText}>Submit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setFeedbackVisible(false);
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -325,6 +453,116 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
+    color: '#cbd5e1',
+  },
+  feedbackRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+  },
+  feedbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+  },
+  feedbackIcon: {
+    marginRight: 6,
+  },
+  feedbackCount: {
+    color: 'transparent',
+    fontSize: 12,
+  },
+  feedbackCountActive: {
+    color: '#fff',
+  },
+  feedbackButtonActiveUp: {
+    backgroundColor: '#1e3a8a',
+    borderColor: '#214d8f',
+  },
+  feedbackButtonActiveDown: {
+    backgroundColor: '#172554',
+    borderColor: '#102040',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    padding: 16,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  reasonsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  reasonTag: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  reasonTagActive: {
+    borderColor: '#fb923c',
+    backgroundColor: '#1e3a8a',
+  },
+  reasonText: {
+    color: '#cbd5e1',
+  },
+  reasonTextActive: {
+    color: '#fb923c',
+  },
+  otherInput: {
+    backgroundColor: '#0b1220',
+    color: '#e2e8f0',
+    borderRadius: 8,
+    padding: 10,
+    minHeight: 80,
+    marginBottom: 12,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  submitButton: {
+    backgroundColor: '#fb923c',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#334155',
+  },
+  submitButtonText: {
+    color: '#071033',
+    fontWeight: '600',
+  },
+  cancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  cancelButtonText: {
     color: '#cbd5e1',
   },
 });
