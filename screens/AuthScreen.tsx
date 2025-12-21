@@ -60,7 +60,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
                 style={styles.logo}
               />
             </View>
-            <Text style={styles.title}>Radha Govind Dham</Text>
+            <Text style={styles.title}>Gita For Youth Leadership</Text>
             <Text style={styles.subtitle}>Gita For Your Life</Text>
           </View>
 

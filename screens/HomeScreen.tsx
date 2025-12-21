@@ -30,7 +30,7 @@ export default function HomeScreen({ user }: HomeScreenProps) {
                 <Ionicons name="leaf" size={30} color="#fb923c" />
               </View>
             </View>
-            <Text style={styles.title}>Radha Govind Dham</Text>
+            <Text style={styles.title}>Gita For Youth Leadership</Text>
             <Text style={styles.subtitle}>Gita For Your Life</Text>
           </View>
           <View style={styles.userBadge}>
