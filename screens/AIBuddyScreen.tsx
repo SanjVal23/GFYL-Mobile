@@ -39,6 +39,7 @@ export default function AIBuddyScreen() {
   const [feedbackRating, setFeedbackRating] = useState<'up' | 'down' | null>(null);
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [otherFeedback, setOtherFeedback] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
@@ -60,14 +61,9 @@ export default function AIBuddyScreen() {
       setIsLoading(true);
 
       try {
-        // Use the geminiService for structured responses
-        console.log('Sending message to Gemini:', questionText);
-        console.log('Chat history length:', messages.length);
         
         const response = await getChatbotResponse(questionText, messages);
         
-        console.log('Received response:', response);
-
         const aiResponse: Message = {
           id: (Date.now() + 1).toString(),
           text: `${response.summary}\n\n${response.detailedExplanation}`,
@@ -284,30 +280,63 @@ export default function AIBuddyScreen() {
 
             <View style={styles.modalActions}>
               <TouchableOpacity
-                style={[styles.submitButton, !feedbackRating && styles.submitButtonDisabled]}
-                onPress={() => {
-                  // Submit feedback - for now log to console and close modal
-                  console.log('Feedback submitted', {
-                    messageId: feedbackTargetId,
-                    rating: feedbackRating,
-                    reasons: selectedReasons,
-                    other: otherFeedback,
-                  });
-                  setFeedbackVisible(false);
-                  setFeedbackTargetId(null);
-                  setFeedbackRating(null);
-                  setSelectedReasons([]);
-                  setOtherFeedback('');
+                style={[styles.submitButton, (!feedbackRating || feedbackSubmitting) && styles.submitButtonDisabled]}
+                onPress={async () => {
+                  // Submit feedback to Google Sheet via Google Apps Script
+                  try {
+                    setFeedbackSubmitting(true);
+                    
+                    const feedbackData = {
+                      timestamp: new Date().toLocaleString(),
+                      messageId: feedbackTargetId,
+                      rating: feedbackRating,
+                      reasons: selectedReasons.join(', '),
+                      feedback: otherFeedback,
+                    };
+                
+                    // Google Apps Script deployment URL
+                    const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZfLbOV7kYs_utlb6KkDpnIjsg-J0KrDjo-9nz_qbUmE2GdQ8ZBC0BxUUaC2NV76KrSQ/exec';
+
+                    const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                      method: 'POST',
+                      body: JSON.stringify(feedbackData),
+                    });
+
+                    const responseText = await response.text();
+                   
+                    if (!response.ok) {
+                      console.error('Failed to submit feedback, status:', response.status);
+                      setFeedbackSubmitting(false);
+                      return;
+                    }
+
+                    console.log('✅ Feedback submitted successfully');
+                    setFeedbackVisible(false);
+                    setFeedbackTargetId(null);
+                    setFeedbackRating(null);
+                    setSelectedReasons([]);
+                    setOtherFeedback('');
+                    setFeedbackSubmitting(false);
+                  } catch (error) {
+                    console.error('❌ Error submitting feedback:', error);
+                    console.error('Error details:', JSON.stringify(error));
+                    setFeedbackSubmitting(false);
+                  }
                 }}
-                disabled={!feedbackRating}
+                disabled={!feedbackRating || feedbackSubmitting}
               >
-                <Text style={styles.submitButtonText}>Submit</Text>
+                {feedbackSubmitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit</Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => {
                   setFeedbackVisible(false);
                 }}
+                disabled={feedbackSubmitting}
               >
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
