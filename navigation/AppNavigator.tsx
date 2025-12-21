@@ -10,6 +10,7 @@ import {
   VideosScreen,
   ProfileScreen,
   BhagavadGitaScreen,
+  GuruScreen,
   AIBuddyScreen,
   QuizzesScreen,
   ChapterDetailScreen,
@@ -18,6 +19,7 @@ import {
 
 export type RootStackParamList = {
   Main: undefined;
+  Guru: undefined;
   BhagavadGita: undefined;
   ChapterDetail: {
     chapterId: number;
@@ -126,6 +128,11 @@ export default function AppNavigator({ user }: { user: User }) {
         name="BhagavadGita"
         component={BhagavadGitaScreen}
         options={{ title: 'Bhagavad Gita' }}
+      />
+      <Stack.Screen
+        name="Guru"
+        component={GuruScreen}
+        options={{ title: 'Our Guru' }}
       />
       <Stack.Screen
         name="ChapterDetail"

@@ -9,3 +9,4 @@ export { default as QuizzesScreen } from './QuizzesScreen';
 export { default as ChapterDetailScreen } from './ChapterDetailScreen';
 export { default as CourseDetailScreen } from './CourseDetailScreen';
 export { AuthScreen } from './AuthScreen';
+export { default as GuruScreen } from './Guru';
