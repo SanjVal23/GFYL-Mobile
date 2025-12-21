@@ -36,6 +36,12 @@ export interface Message {
   id: string;
   text: string;
   isUser: boolean;
+  sender?: 'user' | 'bot';
+}
+
+export interface BotResponse {
+  summary: string;
+  detailedExplanation: string;
 }
 
 export interface Suggestion {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,12 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Message, Suggestion } from '../types';
+import { getChatbotResponse } from '../services/geminiService';
 
 const initialSuggestions: Suggestion[] = [
   { id: '1', text: 'What is karma yoga?' },
@@ -24,28 +26,60 @@ export default function AIBuddyScreen() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Namaste! 🙏 I am your AI spiritual companion.\nHow can I guide you on your journey with the Bhagavad Gita today?',
+      text: 'Radhey Radhey! 🙏 I am Krishna, your spiritual BFF and coach.\nHow can I help you apply the teachings of the Bhagavad Gita to your life today?',
       isUser: false,
     },
   ]);
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
-  const sendMessage = () => {
-    if (inputText.trim()) {
+  useEffect(() => {
+    // Auto-scroll to bottom when new messages arrive
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  }, [messages]);
+
+  const sendMessage = async () => {
+    if (inputText.trim() && !isLoading) {
+      const questionText = inputText;
+      
       const userMessage: Message = {
         id: Date.now().toString(),
-        text: inputText,
+        text: questionText,
         isUser: true,
       };
 
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        text: "Thank you for your question. As an AI companion, I'm here to help guide you through the teachings of the Bhagavad Gita. Please note this is a demo response.",
-        isUser: false,
-      };
-
-      setMessages([...messages, userMessage, aiResponse]);
+      setMessages(prev => [...prev, userMessage]);
       setInputText('');
+      setIsLoading(true);
+
+      try {
+        // Use the geminiService for structured responses
+        console.log('Sending message to Gemini:', questionText);
+        console.log('Chat history length:', messages.length);
+        
+        const response = await getChatbotResponse(questionText, messages);
+        
+        console.log('Received response:', response);
+
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: `${response.summary}\n\n${response.detailedExplanation}`,
+          isUser: false,
+        };
+
+        setMessages(prev => [...prev, aiResponse]);
+      } catch (error) {
+        console.error('Error calling Gemini API:', error);
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: 'Radhey Radhey! I encountered a small ripple in the cosmos. Could you try asking that again?',
+          isUser: false,
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -65,12 +99,16 @@ export default function AIBuddyScreen() {
           <View style={styles.aiIcon}>
             <Ionicons name="chatbubbles" size={40} color="#fff" />
           </View>
-          <Text style={styles.headerTitle}>AI Buddy</Text>
-          <Text style={styles.headerSubtitle}>Spiritual Guidance</Text>
+          <Text style={styles.headerTitle}>Krishna - Your Spiritual BFF</Text>
+          <Text style={styles.headerSubtitle}>Guidance from the Bhagavad Gita</Text>
         </View>
 
         {/* Messages */}
-        <ScrollView style={styles.messagesContainer}>
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.messagesContainer}
+          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        >
           {messages.map((message) => (
             <View
               key={message.id}
@@ -95,6 +133,12 @@ export default function AIBuddyScreen() {
               </Text>
             </View>
           ))}
+          {isLoading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#fb923c" />
+              <Text style={styles.loadingText}>Thinking...</Text>
+            </View>
+          )}
         </ScrollView>
 
         {/* Suggestions */}
@@ -127,15 +171,19 @@ export default function AIBuddyScreen() {
             multiline
           />
           <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
             onPress={sendMessage}
-            disabled={!inputText.trim()}
+            disabled={!inputText.trim() || isLoading}
           >
-            <Ionicons
-              name="send"
-              size={20}
-              color={inputText.trim() ? '#fff' : '#64748b'}
-            />
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons
+                name="send"
+                size={20}
+                color={inputText.trim() ? '#fff' : '#64748b'}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -263,5 +311,20 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#334155',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#1e40af',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 16,
+    marginVertical: 8,
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#cbd5e1',
   },
 });
