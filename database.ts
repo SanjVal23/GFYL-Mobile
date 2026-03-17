@@ -43,10 +43,12 @@ EQ over IQ: Emotional intelligence (self-awareness, self-regulation, empathy, mo
 The Science of the Brain: * The Executive Center (prefrontal cortex) handles intellect and logical decision-making.
 The Emotional Center (amygdala) acts as the brain's threat radar.
 Amygdala Hijack: In highly stressful situations, the emotional center takes over, triggering a "fight or flight" response. This impairs intellectual problem-solving and can temporarily lower your functional IQ by up to 15 points.
+
 2. The "RRR" Framework for Managing Emotions
 Recognize: The crucial first step to emotional control. It requires becoming a "witness" or a third-party observer to your own physical symptoms (e.g., dry mouth, rapid heartbeat, trembling) and emotional symptoms (e.g., confusion, fear, anger) before you react.
 Respond: Handling a situation calmly and gracefully in the short term, rather than reacting impulsively or hastily.
 Reduce (and Eliminate): Developing long-term habits and spiritual practices to permanently decrease and eventually eliminate worry and stress from your life.
+
 3. The "PTA" Framework for Decision-Making
 Pause (ITL): * Intelligence is impacted by strong emotions.
 Temporary nature of emotions (they will pass).
@@ -59,6 +61,7 @@ Remove the stress of the result.
 Others (do not work merely to please them or seek external validation).
 Unafraid to do the right thing.
 Devoid of pride.
+
 4. Mastering the Mind: The Kathopanishad Chariot Analogy
 The Chariot (The Body): The physical vehicle.
 The Passenger (The Soul): The true self and master of the chariot, dictating the ultimate purpose and destination.
@@ -66,6 +69,7 @@ The Charioteer (The Intellectual Mind): The logical decision-maker.
 The Reins (The Emotional Mind): The tool used to guide the horses.
 The Horses (The 5 Senses): The senses that naturally run wild chasing temporary worldly pleasures.
 Core Lesson: The intellect must firmly hold the reins of the emotional mind to control the senses. Without this hierarchy, the senses run out of control, leading to worldly attachment, unfulfilled desires, anger, and clouded judgment.
+
 5. Building Self-Confidence (Internal vs. External)
 Internal Self-Confidence: A deep-rooted, unshakable belief in oneself from within. It is built through 10 core steps:
 Being self-aware of negative/self-limiting thoughts.
@@ -79,12 +83,14 @@ Fostering a desire to learn (knowing it is okay to make mistakes).
 Creating and reviewing a Vision Board for your goals.
 Mastering the mind through positive affirmations and meditation.
 External Self-Confidence: How you present yourself to the world through confident body language (upright posture, sustained eye contact, confident pitch/volume, and expansive gestures).
+
 6. The Burj Khalifa Analogy: Foundational vs. Practitioner Habits
 Foundational Anchors (The Underground Foundation): Without these three deep anchors, a person's life and leadership structures will come crashing down.
 Mind: Mastering the conscious and subconscious mind.
 Body: Maintaining physical fitness, diet, and proper sleep.
 Support System: Relying on the Divine, parents, mentors, and a positive community.
 Practitioner Habits (The Skyscraper): Visible actions built on top of the strong foundation, such as goal setting, time management, gratitude journaling, positive affirmations, managing social media, and tackling peer pressure.
+
 7. Habit Building (Based on Atomic Habits)
 The Habit Loop: Every habit consists of a Cue (trigger), Routine (the behavior), and Reward (reinforcement).
 Building Good Habits (4 Steps):
@@ -97,6 +103,7 @@ Make it Invisible (remove the trigger from your environment).
 Make it Unattractive (highlight the negative consequences).
 Make it Difficult (add physical or mental barriers/friction).
 Make it Unsatisfying (use accountability partners or self-penalties).
+
 8. Meditation, Affirmations, and Detachment
 Meditation (4 Steps to peak consciousness):
 Self-Awareness: Becoming a witness to your physical and emotional state.
@@ -105,6 +112,7 @@ Mental Relaxation: Visualizing a tranquil, happy place.
 Deepest Consciousness: Connecting with the Divine to reach highly creative and focused Alpha/Theta brainwave states.
 Positive Affirmations: Reprogramming the subconscious powerhouse by using present tense ("I am", "I have"), specific, and brief positive statements to combat the thousands of negative thoughts the brain naturally generates daily.
 Detachment (Vairagya) and Duty (Nishkama Karma): Understanding that attachment to temporary "shiny objects" leads to anger and stress. True detachment means staying emotionally steady and joyful whether you possess the object or not. Individuals should perform their prescribed duties to the best of their abilities without being emotionally tied to the success or failure of the outcome.
+
 The RRR Framework: The curriculum emphasizes moving from reacting blindly to responding effectively using the RRR framework. RRR stands for Recognize, Respond, and Reduce/Eliminate.
 The PTA Framework (Pause, Think, Act): When responding to stressful situations, students are taught to use the PTA method.
 Pause (ITL): This step involves stopping before reacting and using the "ITL" mental checklist. ITL reminds students that Intelligence is impacted by emotions, emotions are Temporary, and Leaders stay calm.
