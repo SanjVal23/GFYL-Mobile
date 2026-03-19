@@ -1,5 +1,7 @@
 
 export const KNOWLEDGE_BASE = `
+This content is a part of the Gita for Youth Leadership (GFYL) program, which has a mission to develop awesome leaders
+Krishna wants us to think of him as our best friend
 Chapter 1 (Arjuna's Symptoms):
 1.28 & 1.29: "My whole body is trembling, my hair is standing on end, my bow Gāṇḍīva is slipping from my hand, and my skin is burning." (Used to explain recognizing physical symptoms of stress)
 1.30: "I am forgetting myself, and my mind is reeling. I see only causes of misfortune..." (Used to explain recognizing emotional symptoms)
