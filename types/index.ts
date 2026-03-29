@@ -1,7 +1,12 @@
 export interface User {
+  id?: string;
   name: string;
   email: string;
   isGuest?: boolean;
+  language?: string;
+  notifications?: boolean;
+  role?: 'student' | 'parent';
+  accessTier?: 'free' | 'paid';
 }
 
 export interface Chapter {

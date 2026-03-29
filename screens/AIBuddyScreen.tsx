@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,14 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Message, Suggestion } from '../types';
 import { getChatbotResponse } from '../services/geminiService';
+import { useUser } from '../contexts/UserContext';
+import { supabase } from '../services/supabaseClient';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 const initialSuggestions: Suggestion[] = [
   { id: '1', text: 'What is karma yoga?' },
@@ -23,14 +27,35 @@ const initialSuggestions: Suggestion[] = [
   { id: '4', text: 'What is the path to liberation?' },
 ];
 
+const WELCOME_MESSAGE: Message = {
+  id: 'welcome',
+  text: 'Radhey Radhey! 🙏 I am Krishna, your spiritual BFF and coach.\nHow can I help you apply the teachings of the Bhagavad Gita to your life today?',
+  isUser: false,
+};
+
+interface ChatConversation {
+  id: string;
+  title: string;
+  updatedAt: string;
+  messages: Message[];
+}
+
+const createNewConversation = (): ChatConversation => ({
+  id: `conv-${Date.now()}`,
+  title: 'New chat',
+  updatedAt: new Date().toISOString(),
+  messages: [WELCOME_MESSAGE],
+});
+
+const sortByUpdated = (items: ChatConversation[]) =>
+  [...items].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
 export default function AIBuddyScreen() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Radhey Radhey! 🙏 I am Krishna, your spiritual BFF and coach.\nHow can I help you apply the teachings of the Bhagavad Gita to your life today?',
-      isUser: false,
-    },
-  ]);
+  const { user } = useUser();
+  const { t } = useLocalization();
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>('');
+  const [historyVisible, setHistoryVisible] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -41,53 +66,182 @@ export default function AIBuddyScreen() {
   const [otherFeedback, setOtherFeedback] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
+  const storageKey = useMemo(
+    () => `chat_conversations:${user.id || 'guest'}`,
+    [user.id]
+  );
+
+  const activeConversation = useMemo(
+    () => conversations.find((item) => item.id === activeConversationId) || null,
+    [conversations, activeConversationId]
+  );
+
+  const messages = activeConversation?.messages ?? [WELCOME_MESSAGE];
+
+  const patchConversation = (conversationId: string, updater: (conversation: ChatConversation) => ChatConversation) => {
+    setConversations((prev) => {
+      const index = prev.findIndex((item) => item.id === conversationId);
+      if (index === -1) {
+        return prev;
+      }
+
+      const updated = updater(prev[index]);
+      const copy = [...prev];
+      copy[index] = updated;
+      return copy;
+    });
+  };
+
+  const startNewConversation = () => {
+    const nextConversation = createNewConversation();
+    setConversations((prev) => [nextConversation, ...prev]);
+    setActiveConversationId(nextConversation.id);
+    setInputText('');
+    setHistoryVisible(false);
+  };
+
   useEffect(() => {
-    // Auto-scroll to bottom when new messages arrive
     scrollViewRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
+  useEffect(() => {
+    const loadConversations = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(storageKey);
+        if (stored) {
+          const parsed = JSON.parse(stored) as ChatConversation[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const normalized = sortByUpdated(parsed).map((item) => ({
+              ...item,
+              messages: item.messages?.length ? item.messages : [WELCOME_MESSAGE],
+            }));
+            setConversations(normalized);
+            setActiveConversationId(normalized[0].id);
+            return;
+          }
+        }
+
+        if (!user.isGuest && user.id) {
+          const { data, error } = await supabase
+            .from('chat_messages')
+            .select('id,role,text,created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+
+          if (!error && data && data.length > 0) {
+            const restored: ChatConversation = {
+              id: `legacy-${Date.now()}`,
+              title: 'Previous chat',
+              updatedAt: data[data.length - 1].created_at || new Date().toISOString(),
+              messages: data.map((item) => ({
+                id: item.id,
+                text: item.text,
+                isUser: item.role === 'user',
+              })),
+            };
+            setConversations([restored]);
+            setActiveConversationId(restored.id);
+            return;
+          }
+        }
+
+        const first = createNewConversation();
+        setConversations([first]);
+        setActiveConversationId(first.id);
+      } catch (error) {
+        console.error('Failed to load conversations', error);
+        const first = createNewConversation();
+        setConversations([first]);
+        setActiveConversationId(first.id);
+      }
+    };
+
+    loadConversations();
+  }, [storageKey, user.id, user.isGuest]);
+
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    AsyncStorage.setItem(storageKey, JSON.stringify(conversations)).catch((error) => {
+      console.error('Failed to persist conversations', error);
+    });
+  }, [conversations, storageKey]);
+
   const sendMessage = async () => {
-    if (inputText.trim() && !isLoading) {
-      const questionText = inputText;
-      
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        text: questionText,
-        isUser: true,
+    if (!inputText.trim() || isLoading || !activeConversation) return;
+
+    const questionText = inputText.trim();
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      text: questionText,
+      isUser: true,
+    };
+
+    const contextMessages = [...activeConversation.messages, userMessage];
+
+    patchConversation(activeConversation.id, (conversation) => ({
+      ...conversation,
+      updatedAt: new Date().toISOString(),
+      title:
+        conversation.title === 'New chat'
+          ? questionText.slice(0, 42)
+          : conversation.title,
+      messages: [...conversation.messages, userMessage],
+    }));
+
+    setInputText('');
+    setIsLoading(true);
+
+    try {
+      const response = await getChatbotResponse(questionText, contextMessages);
+      const aiResponse: Message = {
+        id: `assistant-${Date.now()}`,
+        text: `${response.summary}\n\n${response.detailedExplanation}`,
+        isUser: false,
       };
 
-      setMessages(prev => [...prev, userMessage]);
-      setInputText('');
-      setIsLoading(true);
+      patchConversation(activeConversation.id, (conversation) => ({
+        ...conversation,
+        updatedAt: new Date().toISOString(),
+        messages: [...conversation.messages, aiResponse],
+      }));
 
-      try {
-        
-        const response = await getChatbotResponse(questionText, messages);
-        
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: `${response.summary}\n\n${response.detailedExplanation}`,
-          isUser: false,
-        };
-
-        setMessages(prev => [...prev, aiResponse]);
-      } catch (error) {
-        console.error('Error calling Gemini API:', error);
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: 'Radhey Radhey! I encountered a small ripple in the cosmos. Could you try asking that again?',
-          isUser: false,
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      } finally {
-        setIsLoading(false);
+      if (!user.isGuest && user.id) {
+        await supabase.from('chat_messages').insert([
+          {
+            user_id: user.id,
+            role: 'user',
+            text: questionText,
+          },
+          {
+            user_id: user.id,
+            role: 'assistant',
+            text: aiResponse.text,
+          },
+        ]);
       }
+    } catch (error) {
+      console.error('Error calling Gemini API:', error);
+      const errorMessage: Message = {
+        id: `assistant-error-${Date.now()}`,
+        text: 'Radhey Radhey! I encountered a small ripple in the cosmos. Could you try asking that again?',
+        isUser: false,
+      };
+
+      patchConversation(activeConversation.id, (conversation) => ({
+        ...conversation,
+        updatedAt: new Date().toISOString(),
+        messages: [...conversation.messages, errorMessage],
+      }));
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSuggestionPress = (suggestion: string) => {
     setInputText(suggestion);
   };
+
+  const visibleConversations = sortByUpdated(conversations);
 
   return (
     <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
@@ -96,17 +250,30 @@ export default function AIBuddyScreen() {
         style={styles.keyboardView}
         keyboardVerticalOffset={90}
       >
-        {/* Header */}
+        <View style={styles.headerTopRow}>
+          <TouchableOpacity style={styles.headerActionButton} onPress={() => setHistoryVisible(true)}>
+            <Ionicons name="time-outline" size={18} color="#fff" />
+            <Text style={styles.headerActionText}>{t('ai.history', 'History')}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.headerActionButton} onPress={startNewConversation}>
+            <Ionicons name="add-circle-outline" size={18} color="#fff" />
+            <Text style={styles.headerActionText}>{t('ai.newChat', 'New Chat')}</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.header}>
           <View style={styles.aiIcon}>
             <Ionicons name="chatbubbles" size={40} color="#fff" />
           </View>
-          <Text style={styles.headerTitle}>Krishna - Your Spiritual BFF</Text>
-          <Text style={styles.headerSubtitle}>Guidance from the Bhagavad Gita</Text>
+          <Text style={styles.headerTitle}>{t('ai.title', 'Krishna - Your Spiritual BFF')}</Text>
+          <Text style={styles.headerSubtitle}>{t('ai.subtitle', 'Guidance from the Bhagavad Gita')}</Text>
+          {activeConversation ? (
+            <Text style={styles.activeConversationTitle}>{activeConversation.title}</Text>
+          ) : null}
         </View>
 
-        {/* Messages */}
-        <ScrollView 
+        <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
@@ -133,7 +300,7 @@ export default function AIBuddyScreen() {
               >
                 {message.text}
               </Text>
-              {/* Feedback controls for AI responses */}
+
               {!message.isUser && (
                 <View style={styles.feedbackRow}>
                   <TouchableOpacity
@@ -189,7 +356,6 @@ export default function AIBuddyScreen() {
           )}
         </ScrollView>
 
-        {/* Suggestions */}
         {messages.length === 1 && (
           <View style={styles.suggestionsContainer}>
             <Text style={styles.suggestionsTitle}>Suggestions:</Text>
@@ -208,14 +374,12 @@ export default function AIBuddyScreen() {
           </View>
         )}
 
-        {/* Input */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Ask me anything..."
+            placeholder={t('ai.placeholder', 'Ask me anything...')}
             placeholderTextColor="#94a3b8"
             value={inputText}
-      
             onChangeText={setInputText}
             multiline
           />
@@ -237,7 +401,56 @@ export default function AIBuddyScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Feedback Modal */}
+      <Modal
+        visible={historyVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setHistoryVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.historyHeaderRow}>
+              <Text style={styles.modalTitle}>{t('ai.savedConversations', 'Saved Conversations')}</Text>
+              <TouchableOpacity onPress={startNewConversation}>
+                <Ionicons name="add-circle-outline" size={22} color="#fb923c" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.historyList}>
+              {visibleConversations.map((conversation) => (
+                <TouchableOpacity
+                  key={conversation.id}
+                  style={[
+                    styles.historyItem,
+                    conversation.id === activeConversationId && styles.historyItemActive,
+                  ]}
+                  onPress={() => {
+                    setActiveConversationId(conversation.id);
+                    setHistoryVisible(false);
+                  }}
+                >
+                  <Ionicons
+                    name="chatbox-ellipses-outline"
+                    size={18}
+                    color={conversation.id === activeConversationId ? '#fb923c' : '#94a3b8'}
+                  />
+                  <View style={styles.historyTextWrap}>
+                    <Text style={styles.historyTitle}>{conversation.title}</Text>
+                    <Text style={styles.historyMeta}>
+                      {new Date(conversation.updatedAt).toLocaleString()} • {conversation.messages.length} msgs
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity style={styles.cancelButton} onPress={() => setHistoryVisible(false)}>
+              <Text style={styles.cancelButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal
         visible={feedbackVisible}
         transparent
@@ -254,17 +467,19 @@ export default function AIBuddyScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Why did you choose this rating? (optional)</Text>
             <View style={styles.reasonsRow}>
-              {['Factually correct','Easy to understand','Informative','Creative / Interesting','Other'].map((r) => (
+              {['Factually correct', 'Easy to understand', 'Informative', 'Creative / Interesting', 'Other'].map((reason) => (
                 <TouchableOpacity
-                  key={r}
-                  style={[styles.reasonTag, selectedReasons.includes(r) && styles.reasonTagActive]}
+                  key={reason}
+                  style={[styles.reasonTag, selectedReasons.includes(reason) && styles.reasonTagActive]}
                   onPress={() => {
-                    if (selectedReasons.includes(r)) setSelectedReasons(prev => prev.filter(x => x !== r));
-                    else setSelectedReasons(prev => [...prev, r]);
-                    if (r === 'Other') setOtherFeedback('');
+                    if (selectedReasons.includes(reason)) {
+                      setSelectedReasons((prev) => prev.filter((item) => item !== reason));
+                    } else {
+                      setSelectedReasons((prev) => [...prev, reason]);
+                    }
                   }}
                 >
-                  <Text style={[styles.reasonText, selectedReasons.includes(r) && styles.reasonTextActive]}>{r}</Text>
+                  <Text style={[styles.reasonText, selectedReasons.includes(reason) && styles.reasonTextActive]}>{reason}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -282,10 +497,9 @@ export default function AIBuddyScreen() {
               <TouchableOpacity
                 style={[styles.submitButton, (!feedbackRating || feedbackSubmitting) && styles.submitButtonDisabled]}
                 onPress={async () => {
-                  // Submit feedback to Google Sheet via Google Apps Script
                   try {
                     setFeedbackSubmitting(true);
-                    
+
                     const feedbackData = {
                       timestamp: new Date().toLocaleString(),
                       messageId: feedbackTargetId,
@@ -293,24 +507,21 @@ export default function AIBuddyScreen() {
                       reasons: selectedReasons.join(', '),
                       feedback: otherFeedback,
                     };
-                
-                    // Google Apps Script deployment URL
-                    const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZfLbOV7kYs_utlb6KkDpnIjsg-J0KrDjo-9nz_qbUmE2GdQ8ZBC0BxUUaC2NV76KrSQ/exec';
+
+                    const GOOGLE_APPS_SCRIPT_URL =
+                      'https://script.google.com/macros/s/AKfycbwZfLbOV7kYs_utlb6KkDpnIjsg-J0KrDjo-9nz_qbUmE2GdQ8ZBC0BxUUaC2NV76KrSQ/exec';
 
                     const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
                       method: 'POST',
                       body: JSON.stringify(feedbackData),
                     });
 
-                    const responseText = await response.text();
-                   
                     if (!response.ok) {
                       console.error('Failed to submit feedback, status:', response.status);
                       setFeedbackSubmitting(false);
                       return;
                     }
 
-                    console.log('✅ Feedback submitted successfully');
                     setFeedbackVisible(false);
                     setFeedbackTargetId(null);
                     setFeedbackRating(null);
@@ -318,8 +529,7 @@ export default function AIBuddyScreen() {
                     setOtherFeedback('');
                     setFeedbackSubmitting(false);
                   } catch (error) {
-                    console.error('❌ Error submitting feedback:', error);
-                    console.error('Error details:', JSON.stringify(error));
+                    console.error('Error submitting feedback:', error);
                     setFeedbackSubmitting(false);
                   }
                 }}
@@ -355,9 +565,29 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
+  headerTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
+    paddingTop: 14,
+  },
+  headerActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1e40af',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  headerActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   header: {
     alignItems: 'center',
-    paddingTop: 20,
+    paddingTop: 10,
     paddingBottom: 15,
   },
   aiIcon: {
@@ -378,6 +608,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#cbd5e1',
     marginTop: 4,
+  },
+  activeConversationTitle: {
+    fontSize: 12,
+    color: '#93c5fd',
+    marginTop: 8,
   },
   messagesContainer: {
     flex: 1,
@@ -528,6 +763,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
+    maxHeight: '80%',
     backgroundColor: '#0f172a',
     borderRadius: 12,
     padding: 16,
@@ -536,6 +772,42 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     marginBottom: 12,
+  },
+  historyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyList: {
+    marginBottom: 12,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#223248',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  historyItemActive: {
+    borderColor: '#fb923c',
+    backgroundColor: '#152238',
+  },
+  historyTextWrap: {
+    flex: 1,
+  },
+  historyTitle: {
+    color: '#e2e8f0',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyMeta: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 2,
   },
   reasonsRow: {
     flexDirection: 'row',

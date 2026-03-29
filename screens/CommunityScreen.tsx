@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useUser } from '../contexts/UserContext';
+import { supabase } from '../services/supabaseClient';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 interface Comment {
   id: string;
@@ -107,6 +110,8 @@ const initialComments: { [key: string]: Comment[] } = {
 };
 
 export default function CommunityScreen() {
+  const { user } = useUser();
+  const { t } = useLocalization();
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<{ [key: string]: Comment[] }>(initialComments);
@@ -117,10 +122,142 @@ export default function CommunityScreen() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
+  const currentAuthor = useMemo(
+    () => (user?.isGuest ? 'Guest User' : user?.name || 'User'),
+    [user?.isGuest, user?.name]
+  );
+
+  const formatTimestamp = (iso: string | null | undefined) => {
+    if (!iso) return 'Just now';
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    return date.toLocaleString();
+  };
+
+  useEffect(() => {
+    const loadCommunityData = async () => {
+      if (user.isGuest || !user.id) return;
+
+      const { data: postsData, error: postsError } = await supabase
+        .from('community_posts')
+        .select('id,author,title,content,likes,comments,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (postsError) {
+        console.error('Failed to load community posts', postsError);
+      }
+
+      const { data: commentsData, error: commentsError } = await supabase
+        .from('community_comments')
+        .select('id,post_id,author,text,likes,created_at');
+
+      if (commentsError) {
+        console.error('Failed to load community comments', commentsError);
+      }
+
+      const { data: repliesData, error: repliesError } = await supabase
+        .from('community_replies')
+        .select('id,comment_id,author,text,created_at');
+
+      if (repliesError) {
+        console.error('Failed to load community replies', repliesError);
+      }
+
+      const { data: postLikes, error: postLikesError } = await supabase
+        .from('community_post_likes')
+        .select('post_id')
+        .eq('user_id', user.id);
+
+      if (postLikesError) {
+        console.error('Failed to load community post likes', postLikesError);
+      }
+
+      const { data: commentLikes, error: commentLikesError } = await supabase
+        .from('community_comment_likes')
+        .select('comment_id')
+        .eq('user_id', user.id);
+
+      if (commentLikesError) {
+        console.error('Failed to load community comment likes', commentLikesError);
+      }
+
+      const likedPosts = new Set((postLikes || []).map(p => p.post_id));
+      const likedComments = new Set((commentLikes || []).map(c => c.comment_id));
+
+      const repliesByComment: { [key: string]: Reply[] } = {};
+      (repliesData || []).forEach((reply) => {
+        if (!repliesByComment[reply.comment_id]) repliesByComment[reply.comment_id] = [];
+        repliesByComment[reply.comment_id].push({
+          id: reply.id,
+          author: reply.author,
+          text: reply.text,
+          timestamp: formatTimestamp(reply.created_at),
+        });
+      });
+
+      const commentsByPost: { [key: string]: Comment[] } = {};
+      (commentsData || []).forEach((comment) => {
+        if (!commentsByPost[comment.post_id]) commentsByPost[comment.post_id] = [];
+        commentsByPost[comment.post_id].push({
+          id: comment.id,
+          author: comment.author,
+          text: comment.text,
+          likes: comment.likes || 0,
+          replies: repliesByComment[comment.id] || [],
+          timestamp: formatTimestamp(comment.created_at),
+          liked: likedComments.has(comment.id),
+        });
+      });
+
+      if (postsData) {
+        setPosts(
+          postsData.map((post) => ({
+            id: post.id,
+            author: post.author,
+            title: post.title,
+            content: post.content,
+            likes: post.likes || 0,
+            comments: post.comments || 0,
+            timestamp: formatTimestamp(post.created_at),
+            liked: likedPosts.has(post.id),
+          }))
+        );
+      } else {
+        setPosts([]);
+      }
+
+      setComments(commentsByPost);
+    };
+
+    loadCommunityData();
+  }, [user.id, user.isGuest]);
+
   const toggleLike = (postId: string) => {
     setPosts(posts.map(p =>
       p.id === postId ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p
     ));
+
+    const post = posts.find(p => p.id === postId);
+    if (!post || user.isGuest || !user.id) return;
+
+    const newLikes = post.liked ? post.likes - 1 : post.likes + 1;
+    if (post.liked) {
+      supabase
+        .from('community_post_likes')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', user.id);
+    } else {
+      supabase
+        .from('community_post_likes')
+        .insert({ post_id: postId, user_id: user.id });
+    }
+
+    supabase
+      .from('community_posts')
+      .update({ likes: newLikes })
+      .eq('id', postId);
   };
 
   const toggleCommentLike = (postId: string, commentId: string) => {
@@ -130,13 +267,34 @@ export default function CommunityScreen() {
         c.id === commentId ? { ...c, liked: !c.liked, likes: c.liked ? c.likes - 1 : c.likes + 1 } : c
       ) || [],
     });
+
+    const comment = comments[postId]?.find(c => c.id === commentId);
+    if (!comment || user.isGuest || !user.id) return;
+
+    const newLikes = comment.liked ? comment.likes - 1 : comment.likes + 1;
+    if (comment.liked) {
+      supabase
+        .from('community_comment_likes')
+        .delete()
+        .eq('comment_id', commentId)
+        .eq('user_id', user.id);
+    } else {
+      supabase
+        .from('community_comment_likes')
+        .insert({ comment_id: commentId, user_id: user.id });
+    }
+
+    supabase
+      .from('community_comments')
+      .update({ likes: newLikes })
+      .eq('id', commentId);
   };
 
-  const addPost = () => {
+  const addPost = async () => {
     if (newPostTitle.trim() && newPostContent.trim()) {
       const newPost: Post = {
         id: Date.now().toString(),
-        author: 'Demo User',
+        author: currentAuthor,
         title: newPostTitle,
         content: newPostContent,
         likes: 0,
@@ -148,14 +306,49 @@ export default function CommunityScreen() {
       setNewPostTitle('');
       setNewPostContent('');
       setNewPostModalVisible(false);
+
+      if (!user.isGuest && user.id) {
+        const { data, error } = await supabase
+          .from('community_posts')
+          .insert({
+            user_id: user.id,
+            author: currentAuthor,
+            title: newPost.title,
+            content: newPost.content,
+            likes: 0,
+            comments: 0,
+          })
+          .select('id,author,title,content,likes,comments,created_at')
+          .single();
+
+        if (error) {
+          console.error('Failed to save community post', error);
+        }
+
+        if (data) {
+          setPosts(prev => [
+            {
+              id: data.id,
+              author: data.author,
+              title: data.title,
+              content: data.content,
+              likes: data.likes || 0,
+              comments: data.comments || 0,
+              timestamp: formatTimestamp(data.created_at),
+              liked: false,
+            },
+            ...prev.filter(p => p.id !== newPost.id),
+          ]);
+        }
+      }
     }
   };
 
-  const addComment = (postId: string) => {
+  const addComment = async (postId: string) => {
     if (commentText.trim()) {
       const newComment: Comment = {
         id: Date.now().toString(),
-        author: 'Demo User',
+        author: currentAuthor,
         text: commentText,
         likes: 0,
         replies: [],
@@ -170,14 +363,58 @@ export default function CommunityScreen() {
         p.id === postId ? { ...p, comments: p.comments + 1 } : p
       ));
       setCommentText('');
+
+      if (!user.isGuest && user.id) {
+        const { data, error } = await supabase
+          .from('community_comments')
+          .insert({
+            post_id: postId,
+            user_id: user.id,
+            author: currentAuthor,
+            text: newComment.text,
+            likes: 0,
+          })
+          .select('id,post_id,author,text,likes,created_at')
+          .single();
+
+        if (error) {
+          console.error('Failed to save community comment', error);
+        }
+
+        if (data) {
+          setComments(prev => ({
+            ...prev,
+            [postId]: (prev[postId] || []).map(c =>
+              c.id === newComment.id
+                ? {
+                    id: data.id,
+                    author: data.author,
+                    text: data.text,
+                    likes: data.likes || 0,
+                    replies: [],
+                    timestamp: formatTimestamp(data.created_at),
+                    liked: false,
+                  }
+                : c
+            ),
+          }));
+        }
+
+        const post = posts.find(p => p.id === postId);
+        const newCount = (post?.comments || 0) + 1;
+        supabase
+          .from('community_posts')
+          .update({ comments: newCount })
+          .eq('id', postId);
+      }
     }
   };
 
-  const addReply = (postId: string, commentId: string) => {
+  const addReply = async (postId: string, commentId: string) => {
     if (!replyText.trim()) return;
     const newReply = {
       id: Date.now().toString(),
-      author: 'Demo User',
+      author: currentAuthor,
       text: replyText,
       timestamp: 'Just now',
     };
@@ -195,12 +432,53 @@ export default function CommunityScreen() {
     setReplyText('');
     setReplyingTo(null);
     // Also update posts comment count if needed (kept unchanged here)
+
+    if (!user.isGuest && user.id) {
+      const { data, error } = await supabase
+        .from('community_replies')
+        .insert({
+          comment_id: commentId,
+          user_id: user.id,
+          author: currentAuthor,
+          text: newReply.text,
+        })
+        .select('id,comment_id,author,text,created_at')
+        .single();
+
+      if (error) {
+        console.error('Failed to save community reply', error);
+      }
+
+      if (data) {
+        setComments(prev => {
+          const postComments = prev[postId] ?? [];
+          const updated = postComments.map(c =>
+            c.id === commentId
+              ? {
+                  ...c,
+                  replies: c.replies.map(r =>
+                    r.id === newReply.id
+                      ? {
+                          id: data.id,
+                          author: data.author,
+                          text: data.text,
+                          timestamp: formatTimestamp(data.created_at),
+                        }
+                      : r
+                  ),
+                }
+              : c
+          );
+          return { ...prev, [postId]: updated };
+        });
+      }
+    }
   };
 
   return (
     <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Community Forums</Text>
+        <Text style={styles.headerTitle}>{t('community.title', 'Community Forums')}</Text>
         <TouchableOpacity
           style={styles.newPostButton}
           onPress={() => setNewPostModalVisible(true)}

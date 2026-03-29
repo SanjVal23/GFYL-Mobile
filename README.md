@@ -15,6 +15,22 @@ React Native mobile application for "Gita For Your Life" - Radha Govind Dham spi
 npm install
 ```
 
+### Environment Setup
+
+Create a local env file from the example:
+
+```bash
+cp .env.example .env
+```
+
+Fill these values in `.env`:
+
+- `EXPO_PUBLIC_GEMINI_API_KEY`
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+
+Note: Never commit your `.env` file.
+
 ### Running the App
 
 ```bash

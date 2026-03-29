@@ -2,7 +2,6 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { User } from '../types';
 import {
   HomeScreen,
   CoursesScreen,
@@ -15,6 +14,7 @@ import {
   QuizzesScreen,
   ChapterDetailScreen,
   CourseDetailScreen,
+  MeditationScreen,
 } from '../screens';
 
 export type RootStackParamList = {
@@ -28,6 +28,7 @@ export type RootStackParamList = {
   };
   AIBuddy: undefined;
   Quizzes: undefined;
+  Meditation: undefined;
   CourseDetail: {
     courseId: string;
     courseTitle: string;
@@ -38,7 +39,7 @@ export type RootStackParamList = {
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator<RootStackParamList>();
 
-function TabNavigator({ user }: { user: User }) {
+function TabNavigator({ onLogout }: { onLogout: () => void }) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -56,14 +57,13 @@ function TabNavigator({ user }: { user: User }) {
     >
       <Tab.Screen
         name="Home"
+        component={HomeScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
         }}
-      >
-        {() => <HomeScreen user={user} />}
-      </Tab.Screen>
+      />
       <Tab.Screen
         name="Courses"
         component={CoursesScreen}
@@ -99,13 +99,13 @@ function TabNavigator({ user }: { user: User }) {
           ),
         }}
       >
-        {() => <ProfileScreen user={user} />}
+        {() => <ProfileScreen onLogout={onLogout} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
 }
 
-export default function AppNavigator({ user }: { user: User }) {
+export default function AppNavigator({ onLogout }: { onLogout: () => void }) {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -122,7 +122,7 @@ export default function AppNavigator({ user }: { user: User }) {
         name="Main"
         options={{ headerShown: false }}
       >
-        {() => <TabNavigator user={user} />}
+        {() => <TabNavigator onLogout={onLogout} />}
       </Stack.Screen>
       <Stack.Screen
         name="BhagavadGita"
@@ -148,6 +148,11 @@ export default function AppNavigator({ user }: { user: User }) {
         name="Quizzes"
         component={QuizzesScreen}
         options={{ title: 'Quizzes' }}
+      />
+      <Stack.Screen
+        name="Meditation"
+        component={MeditationScreen}
+        options={{ title: 'Meditation' }}
       />
       <Stack.Screen
         name="CourseDetail"

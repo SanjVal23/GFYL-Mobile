@@ -10,6 +10,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useUser } from '../contexts/UserContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 
 type RootStackParamList = {
   CourseDetail: {
@@ -60,9 +62,24 @@ export default function CourseDetailScreen({ route, navigation }: CourseDetailSc
   const { courseId, courseTitle, courseDescription } = route.params;
   const [lessons] = useState<Lesson[]>(courseLessons[courseId] || []);
   const [selectedLesson, setSelectedLesson] = useState<number | null>(null);
+  const { savedItems, addSavedItem } = useUser();
+  const { t } = useLocalization();
 
   const completedCount = lessons.filter((l) => l.completed).length;
   const progress = Math.round((completedCount / lessons.length) * 100);
+
+  const isLessonSaved = (lessonId: number) =>
+    savedItems.some(item => item.id === `lesson-${courseId}-${lessonId}` || item.id.endsWith(`lesson-${courseId}-${lessonId}`));
+
+  const handleSaveLesson = (lesson: Lesson) => {
+    if (isLessonSaved(lesson.id)) return;
+    addSavedItem({
+      id: `lesson-${courseId}-${lesson.id}`,
+      title: `${courseTitle}: ${lesson.title}`,
+      type: 'lesson',
+      icon: 'book',
+    });
+  };
 
   return (
     <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
@@ -72,14 +89,14 @@ export default function CourseDetailScreen({ route, navigation }: CourseDetailSc
         
         <View style={styles.progressContainer}>
           <View style={styles.progressInfo}>
-            <Text style={styles.progressLabel}>Your Progress</Text>
+            <Text style={styles.progressLabel}>{t('course.progress', 'Your Progress')}</Text>
             <Text style={styles.progressPercentage}>{progress}%</Text>
           </View>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
           </View>
           <Text style={styles.progressText}>
-            {completedCount} of {lessons.length} lessons completed
+            {t('course.progressCount', `${completedCount} of ${lessons.length} lessons completed`)}
           </Text>
         </View>
       </View>
@@ -122,21 +139,40 @@ export default function CourseDetailScreen({ route, navigation }: CourseDetailSc
             {selectedLesson === lesson.id && (
               <View style={styles.lessonContent}>
                 <Text style={styles.contentText}>{lesson.content}</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.startButton,
-                    lesson.completed && styles.reviewButton,
-                  ]}
-                >
-                  <Ionicons
-                    name={lesson.completed ? 'refresh' : 'play'}
-                    size={20}
-                    color="#fff"
-                  />
-                  <Text style={styles.startButtonText}>
-                    {lesson.completed ? 'Review Lesson' : 'Start Lesson'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.lessonActions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.startButton,
+                      lesson.completed && styles.reviewButton,
+                    ]}
+                  >
+                    <Ionicons
+                      name={lesson.completed ? 'refresh' : 'play'}
+                      size={20}
+                      color="#fff"
+                    />
+                    <Text style={styles.startButtonText}>
+                      {lesson.completed ? t('course.review', 'Review Lesson') : t('course.start', 'Start Lesson')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.saveButton,
+                      isLessonSaved(lesson.id) && styles.saveButtonSaved,
+                    ]}
+                    onPress={() => handleSaveLesson(lesson)}
+                    disabled={isLessonSaved(lesson.id)}
+                  >
+                    <Ionicons
+                      name={isLessonSaved(lesson.id) ? 'bookmark' : 'bookmark-outline'}
+                      size={18}
+                      color="#fff"
+                    />
+                    <Text style={styles.saveButtonText}>
+                      {isLessonSaved(lesson.id) ? t('common.saved', 'Saved') : t('common.save', 'Save')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </TouchableOpacity>
@@ -148,8 +184,8 @@ export default function CourseDetailScreen({ route, navigation }: CourseDetailSc
         <TouchableOpacity style={styles.continueButton}>
           <Text style={styles.continueButtonText}>
             {completedCount === lessons.length
-              ? 'Complete Course'
-              : `Continue: ${lessons.find((l) => !l.completed)?.title || 'Next Lesson'}`}
+              ? t('course.complete', 'Complete Course')
+              : t('course.continue', `Continue: ${lessons.find((l) => !l.completed)?.title || 'Next Lesson'}`)}
           </Text>
         </TouchableOpacity>
       </View>
@@ -281,9 +317,33 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     gap: 8,
+    flex: 1,
   },
   reviewButton: {
     backgroundColor: '#3b82f6',
+  },
+  lessonActions: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1e3a8a',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    gap: 6,
+  },
+  saveButtonSaved: {
+    backgroundColor: '#16a34a',
+  },
+  saveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   startButtonText: {
     fontSize: 15,

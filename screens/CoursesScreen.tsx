@@ -11,111 +11,76 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Course } from '../types';
+import { useLocalization } from '../contexts/LocalizationContext';
 
-const coursesData: Course[] = [
-  {
-    id: '1',
-    title: 'Gita Youth Intro Campaign',
-    description: 'Introducing Gita to young leaders',
-    duration: '2 weeks',
-    lessons: 8,
-    progress: 75,
-    icon: 'megaphone',
-  },
-  {
-    id: '2',
-    title: 'Chapter 2 Engagement',
-    description: 'Youth reflections and discussions',
-    duration: '3 weeks',
-    lessons: 12,
-    progress: 40,
-    icon: 'people',
-  },
-  {
-    id: '3',
-    title: 'Daily Inspiration Push',
-    description: 'Short daily campaigns for engagement',
-    duration: '1 week',
-    lessons: 5,
-    progress: 100,
-    icon: 'sunny',
-    completed: true,
-  },
-  {
-    id: '4',
-    title: 'Ramayana Leadership Stories',
-    description: 'Stories for youth mentoring',
-    duration: '4 weeks',
-    lessons: 15,
-    progress: 0,
-    icon: 'school',
-  },
-  {
-    id: '5',
-    title: 'Festival Awareness Campaign',
-    description: 'Janmashtami outreach and more',
-    duration: '2 weeks',
-    lessons: 6,
-    progress: 0,
-    icon: 'share-social',
-  },
-];
+const coursesData: Course[] = [];
 
 export default function CoursesScreen() {
   const navigation = useNavigation<any>();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const { t } = useLocalization();
 
   return (
     <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Marketing</Text>
+        <Text style={styles.headerTitle}>{t('courses.title', 'Marketing')}</Text>
         <Text style={styles.headerSubtitle}>
-          Gita for Youth Leadership · Outreach & Campaigns
+          {t('courses.subtitle', 'Gita for Youth Leadership · Outreach & Campaigns')}
         </Text>
       </View>
 
       <ScrollView style={styles.scrollView}>
-        {coursesData.map((course) => (
-          <TouchableOpacity
-            key={course.id}
-            style={styles.courseCard}
-            onPress={() => setSelectedCourse(course)}
-          >
-            <View style={styles.courseIcon}>
-              <Ionicons name={course.icon as any} size={32} color="#fff" />
-            </View>
-            <View style={styles.courseInfo}>
-              <Text style={styles.courseTitle}>{course.title}</Text>
-              <Text style={styles.courseDescription}>{course.description}</Text>
-              <View style={styles.courseStats}>
-                <View style={styles.stat}>
-                  <Ionicons name="calendar-outline" size={16} color="#94a3b8" />
-                  <Text style={styles.statText}>{course.duration}</Text>
-                </View>
-                <View style={styles.stat}>
-                  <Ionicons name="people-outline" size={16} color="#94a3b8" />
-                  <Text style={styles.statText}>{course.lessons} outreach channels</Text>
-                </View>
+        {coursesData.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="hourglass-outline" size={48} color="#94a3b8" />
+            <Text style={styles.emptyTitle}>{t('courses.comingSoon', 'Coming Soon')}</Text>
+            <Text style={styles.emptyText}>
+              {t('courses.comingSoonText', 'Marketing content is on the way. Check back soon for new campaigns and resources.')}
+            </Text>
+          </View>
+        ) : (
+          coursesData.map((course) => (
+            <TouchableOpacity
+              key={course.id}
+              style={styles.courseCard}
+              onPress={() => setSelectedCourse(course)}
+            >
+              <View style={styles.courseIcon}>
+                <Ionicons name={course.icon as any} size={32} color="#fff" />
               </View>
-              <View style={styles.progressContainer}>
-                <Text style={styles.progressLabel}>Campaign Progress</Text>
-                <Text style={styles.progressPercentage}>{course.progress}%</Text>
-              </View>
-              <View style={styles.progressBar}>
-                <View
-                  style={[styles.progressFill, { width: `${course.progress}%` }]}
-                />
-              </View>
-              {course.completed && (
-                <View style={styles.completedBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color="#34d399" />
-                  <Text style={styles.completedText}>Completed</Text>
+              <View style={styles.courseInfo}>
+                <Text style={styles.courseTitle}>{course.title}</Text>
+                <Text style={styles.courseDescription}>{course.description}</Text>
+                <View style={styles.courseStats}>
+                  <View style={styles.stat}>
+                    <Ionicons name="calendar-outline" size={16} color="#94a3b8" />
+                    <Text style={styles.statText}>{course.duration}</Text>
+                  </View>
+                  <View style={styles.stat}>
+                    <Ionicons name="people-outline" size={16} color="#94a3b8" />
+                    <Text style={styles.statText}>{course.lessons} outreach channels</Text>
+                  </View>
                 </View>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#fb923c" />
-          </TouchableOpacity>
-        ))}
+                <View style={styles.progressContainer}>
+                  <Text style={styles.progressLabel}>Campaign Progress</Text>
+                  <Text style={styles.progressPercentage}>{course.progress}%</Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[styles.progressFill, { width: `${course.progress}%` }]}
+                  />
+                </View>
+                {course.completed && (
+                  <View style={styles.completedBadge}>
+                    <Ionicons name="checkmark-circle" size={16} color="#34d399" />
+                    <Text style={styles.completedText}>Completed</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#fb923c" />
+            </TouchableOpacity>
+          ))
+        )}
         <View style={{ height: 20 }} />
       </ScrollView>
 
@@ -247,6 +212,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  emptyState: {
+    marginHorizontal: 20,
+    marginTop: 40,
+    padding: 24,
+    borderRadius: 16,
+    backgroundColor: '#1e40af',
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#cbd5e1',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   courseDescription: {
     fontSize: 13,

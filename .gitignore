@@ -31,10 +31,13 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.*
+!.env.example
 .env*.local
 
 # API keys and config
-config.ts
+# Keep config.ts tracked; it reads from env vars.
 
 # typescript
 *.tsbuildinfo

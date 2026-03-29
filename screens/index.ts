@@ -8,5 +8,6 @@ export { default as AIBuddyScreen } from './AIBuddyScreen';
 export { default as QuizzesScreen } from './QuizzesScreen';
 export { default as ChapterDetailScreen } from './ChapterDetailScreen';
 export { default as CourseDetailScreen } from './CourseDetailScreen';
+export { default as MeditationScreen } from './MeditationScreen';
 export { AuthScreen } from './AuthScreen';
 export { default as GuruScreen } from './Guru';
