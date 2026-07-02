@@ -7,6 +7,7 @@ export interface User {
   notifications?: boolean;
   role?: 'student' | 'parent';
   accessTier?: 'free' | 'paid';
+  avatarUrl?: string;
 }
 
 export interface Chapter {

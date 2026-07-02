@@ -17,6 +17,7 @@ const mapSessionUser = (sessionUser: any): User => ({
   email: sessionUser.email || '',
   role: sessionUser.user_metadata?.role || 'student',
   accessTier: sessionUser.user_metadata?.accessTier || 'free',
+  avatarUrl: sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || undefined,
 });
 
 function AppContent() {

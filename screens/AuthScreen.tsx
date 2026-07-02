@@ -58,6 +58,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     email: sessionUser.email || '',
     role: sessionUser.user_metadata?.role || DEFAULT_ROLE,
     accessTier: sessionUser.user_metadata?.accessTier || DEFAULT_ACCESS_TIER,
+    avatarUrl: sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || undefined,
   });
 
   const syncUserMetadata = async (sessionUser: any, preferredName?: string) => {
@@ -202,12 +203,61 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
         throw new Error('Authentication did not complete.');
       }
 
-      const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
-      if (exchangeError) throw exchangeError;
+      const hashIndex = result.url.indexOf('#');
+      const queryIndex = result.url.indexOf('?');
+      const paramsString =
+        hashIndex !== -1
+          ? result.url.substring(hashIndex + 1)
+          : queryIndex !== -1
+          ? result.url.substring(queryIndex + 1)
+          : '';
+      const params = new URLSearchParams(paramsString);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const authCode = params.get('code');
 
-      const sessionUser = exchangeData.user;
+      let sessionUser;
+
+      if (accessToken && refreshToken) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (sessionError) throw sessionError;
+        sessionUser = sessionData.user;
+      } else if (authCode) {
+        const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(result.url);
+        if (exchangeError) throw exchangeError;
+        sessionUser = exchangeData.user;
+      } else {
+        throw new Error('No auth tokens were returned from the provider.');
+      }
+
       if (!sessionUser) {
         throw new Error('No user session was returned from the provider.');
+      }
+
+      // A user is "new" if this sign-in is the same event as their account
+      // creation — i.e. they didn't exist in Supabase before now. Comparing
+      // timestamps is more reliable than checking for our own custom
+      // metadata (role), since that can drift or be reset independently.
+      const createdAtMs = sessionUser.created_at ? new Date(sessionUser.created_at).getTime() : 0;
+      const lastSignInAtMs = sessionUser.last_sign_in_at ? new Date(sessionUser.last_sign_in_at).getTime() : 0;
+      const isNewUser = createdAtMs > 0 && Math.abs(lastSignInAtMs - createdAtMs) < 10000;
+
+      if (isNewUser) {
+        const providerName =
+          sessionUser.user_metadata?.full_name ||
+          sessionUser.user_metadata?.name ||
+          sessionUser.email?.split('@')[0] ||
+          '';
+        setName(providerName);
+        setIsGuestFlow(false);
+        setPendingUser(sessionUser);
+        setAccessTierChoice(DEFAULT_ACCESS_TIER);
+        setSelectedRole(DEFAULT_ROLE);
+        setStep('code');
+        return;
       }
 
       const enrichedUser = await syncUserMetadata(sessionUser);

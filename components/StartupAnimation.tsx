@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, Text, Easing } from 'react-native';
+import { Animated, StyleSheet, Text, Easing } from 'react-native';
 
 interface StartupAnimationProps {
   onFinish: () => void;
@@ -13,11 +13,7 @@ export default function StartupAnimation({ onFinish }: StartupAnimationProps) {
   const wordmarkOpacity = useRef(new Animated.Value(0)).current;
   const wordmarkTranslateY = useRef(new Animated.Value(16)).current;
   const taglineOpacity = useRef(new Animated.Value(0)).current;
-
-  const bgOpacity = useRef(new Animated.Value(1)).current;
-  const contentScale = useRef(new Animated.Value(1)).current;
-  const contentOpacity = useRef(new Animated.Value(1)).current;
-  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const containerOpacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const idleLoop = Animated.loop(
@@ -103,40 +99,15 @@ export default function StartupAnimation({ onFinish }: StartupAnimationProps) {
         useNativeDriver: true,
       }),
       Animated.delay(1800),
-      // Pop the brand off the screen
-      Animated.parallel([
-        Animated.timing(contentScale, {
-          toValue: 1.15,
-          duration: 350,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(contentOpacity, {
-          toValue: 0,
-          duration: 300,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-      // Flash to black
-      Animated.timing(flashOpacity, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.ease),
+      Animated.timing(containerOpacity, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.in(Easing.ease),
         useNativeDriver: true,
       }),
     ]).start(() => {
       idleLoop.stop();
-      // Screen is fully black here, so hiding the white background is invisible to the user
-      bgOpacity.setValue(0);
-      Animated.timing(flashOpacity, {
-        toValue: 0,
-        duration: 550,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }).start(() => {
-        onFinish();
-      });
+      onFinish();
     });
 
     idleLoop.start();
@@ -157,62 +128,43 @@ export default function StartupAnimation({ onFinish }: StartupAnimationProps) {
   });
 
   return (
-    <View style={styles.root}>
-      <Animated.View style={[styles.background, { opacity: bgOpacity }]}>
-        <Animated.View
-          style={{
-            alignItems: 'center',
-            opacity: contentOpacity,
-            transform: [{ scale: contentScale }],
-          }}
-        >
-          <Animated.Image
-            source={require('../assets/krishna-hero.png')}
-            style={[
-              styles.image,
-              {
-                opacity: imageOpacity,
-                transform: [{ scale: imageScale }, { rotate }, { translateY }],
-              },
-            ]}
-            resizeMode="contain"
-          />
-          <Animated.Text
-            style={[
-              styles.wordmark,
-              {
-                opacity: wordmarkOpacity,
-                transform: [{ translateY: wordmarkTranslateY }],
-              },
-            ]}
-          >
-            GFYL
-          </Animated.Text>
-          <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
-            GITA FOR YOUTH LEADERSHIP
-          </Animated.Text>
-        </Animated.View>
-      </Animated.View>
-
-      <Animated.View style={[styles.flash, { opacity: flashOpacity }]} />
-    </View>
+    <Animated.View style={[styles.container, { opacity: containerOpacity }]}>
+      <Animated.Image
+        source={require('../assets/krishna-hero.png')}
+        style={[
+          styles.image,
+          {
+            opacity: imageOpacity,
+            transform: [{ scale: imageScale }, { rotate }, { translateY }],
+          },
+        ]}
+        resizeMode="contain"
+      />
+      <Animated.Text
+        style={[
+          styles.wordmark,
+          {
+            opacity: wordmarkOpacity,
+            transform: [{ translateY: wordmarkTranslateY }],
+          },
+        ]}
+      >
+        GFYL
+      </Animated.Text>
+      <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
+        GITA FOR YOUTH LEADERSHIP
+      </Animated.Text>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 999,
-  },
-  background: {
+  container: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  flash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
+    zIndex: 999,
   },
   image: {
     width: 260,

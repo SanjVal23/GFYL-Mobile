@@ -11,6 +11,7 @@ import {
   TextInput,
   Linking,
   Platform,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -195,7 +196,11 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
       <ScrollView ref={scrollViewRef} style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={44} color={colors.accentText} />
+            {user.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Ionicons name="person" size={44} color={colors.accentText} />
+            )}
           </View>
           <Text style={styles.name}>{user.isGuest ? t('profile.guest', 'Guest User') : user.name}</Text>
           <Text style={styles.email}>{user.isGuest ? t('profile.guestAccount', 'Guest Account') : user.email}</Text>
@@ -509,6 +514,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   name: {
     fontSize: 22,

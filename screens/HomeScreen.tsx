@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -172,7 +173,11 @@ export default function HomeScreen() {
             onPress={() => navigation.navigate('Main', { screen: 'Profile' })}
             activeOpacity={0.8}
           >
-            <Text style={styles.avatarText}>{initial}</Text>
+            {user.avatarUrl ? (
+              <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{initial}</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -297,6 +302,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     color: colors.accentText,
