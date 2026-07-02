@@ -1,26 +1,31 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 const screenWidth = Dimensions.get('window').width;
+const CARD_WIDTH = screenWidth * 0.6;
+
+type CardCategory = 'learn' | 'watch' | 'connect';
 
 type DashboardCard = {
   key: string;
   title: string;
   subtitle: string;
   icon: keyof typeof Ionicons.glyphMap;
+  category: CardCategory;
   onPress?: () => void;
   locked?: boolean;
 };
@@ -28,10 +33,16 @@ type DashboardCard = {
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const { user } = useUser();
-  const { colors } = useTheme();
   const { t } = useLocalization();
+  const { colors, isDarkMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const role = user.role || 'student';
   const accessTier = user.accessTier || 'free';
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<'All' | CardCategory>('All');
+
+  const displayName = user.isGuest ? t('home.guest', 'Guest') : user.name.split(' ')[0];
+  const initial = displayName.charAt(0).toUpperCase();
 
   const studentCards: DashboardCard[] = [
     {
@@ -39,6 +50,7 @@ export default function HomeScreen() {
       title: t('home.gita.title', 'Gita for Youth Leadership'),
       subtitle: t('home.gita.subtitle', 'Timeless Wisdom'),
       icon: 'book',
+      category: 'learn',
       onPress: () => navigation.navigate('BhagavadGita'),
     },
     {
@@ -46,6 +58,7 @@ export default function HomeScreen() {
       title: t('home.videos.title', 'KrishTok'),
       subtitle: t('home.videos.subtitle', 'Scroll short lessons'),
       icon: 'play-circle',
+      category: 'watch',
       onPress: () => navigation.navigate('Main', { screen: 'Videos' }),
     },
     {
@@ -53,6 +66,7 @@ export default function HomeScreen() {
       title: t('home.ai.title', 'Krishly AI'),
       subtitle: t('home.ai.subtitle', 'Ask me anything'),
       icon: 'chatbubbles',
+      category: 'connect',
       onPress: () => navigation.navigate('AIBuddy'),
     },
     {
@@ -60,14 +74,18 @@ export default function HomeScreen() {
       title: t('home.meditation.title', 'Meditation'),
       subtitle: t('home.meditation.subtitle', 'Find Peace'),
       icon: 'flower',
+      category: 'learn',
       onPress: () => navigation.navigate('Meditation'),
     },
     {
       key: 'parent-lock',
       title: t('home.parentPortal.title', 'Parent Portal'),
-      subtitle: t('home.parentPortal.subtitle', 'Paid family insights and guidance'),
+      subtitle: accessTier !== 'paid'
+        ? t('home.parentPortal.lockedSubtitle', 'Enter a membership code to unlock')
+        : t('home.parentPortal.subtitle', 'Paid family insights and guidance'),
       icon: 'lock-closed',
-      locked: true,
+      category: 'connect',
+      locked: accessTier !== 'paid',
     },
   ];
 
@@ -77,6 +95,7 @@ export default function HomeScreen() {
       title: t('home.parent.family', 'Family Dashboard'),
       subtitle: t('home.parent.family.subtitle', 'Track devotional progress and engagement'),
       icon: 'people',
+      category: 'connect',
       onPress: () => navigation.navigate('Main', { screen: 'Community' }),
     },
     {
@@ -84,6 +103,7 @@ export default function HomeScreen() {
       title: t('home.parent.courses', 'Parent Resources'),
       subtitle: t('home.parent.courses.subtitle', 'Guides, storybooks, and teaching material'),
       icon: 'school',
+      category: 'learn',
       onPress: () => navigation.navigate('Main', { screen: 'Courses' }),
     },
     {
@@ -91,6 +111,7 @@ export default function HomeScreen() {
       title: t('home.videos.title', 'KrishTok'),
       subtitle: t('home.parent.videos.subtitle', 'Share short lessons with students'),
       icon: 'play-circle',
+      category: 'watch',
       onPress: () => navigation.navigate('Main', { screen: 'Videos' }),
     },
     {
@@ -98,6 +119,7 @@ export default function HomeScreen() {
       title: t('home.guru.title', 'Our Guru'),
       subtitle: t('home.guru.subtitle', 'Spiritual Guide'),
       icon: 'person-circle-outline',
+      category: 'learn',
       onPress: () => navigation.navigate('Guru'),
     },
     {
@@ -105,316 +127,312 @@ export default function HomeScreen() {
       title: t('home.community.title', 'Community'),
       subtitle: t('home.community.subtitle', 'Parent discussions and support'),
       icon: 'chatbox-ellipses',
+      category: 'connect',
       onPress: () => navigation.navigate('Main', { screen: 'Community' }),
     },
   ];
 
   const dashboardCards = role === 'parent' ? parentCards : studentCards;
+  const categories: Array<'All' | CardCategory> = [
+    'All',
+    ...Array.from(new Set(dashboardCards.map((card) => card.category))),
+  ];
+  const categoryLabels: Record<'All' | CardCategory, string> = {
+    All: t('home.category.all', 'All'),
+    learn: t('home.category.learn', 'Learn'),
+    watch: t('home.category.watch', 'Watch'),
+    connect: t('home.category.connect', 'Connect'),
+  };
+
+  const filteredCards = dashboardCards.filter((card) => {
+    const matchesCategory = activeCategory === 'All' || card.category === activeCategory;
+    const matchesQuery = card.title.toLowerCase().includes(searchQuery.trim().toLowerCase());
+    return matchesCategory && matchesQuery;
+  });
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setActiveCategory('All');
+  };
 
   return (
-    <LinearGradient colors={colors.background} style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.logo, { backgroundColor: colors.secondary, borderColor: colors.accent }]}>
-              <Ionicons name="leaf" size={32} color={colors.accent} />
-            </View>
-            <View style={styles.headerText}>
-              <Text style={[styles.title, { color: colors.text }]}>{t('home.title', 'GFYL')}</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('home.subtitle', 'Gita For Your Life')}</Text>
-            </View>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greeting}>{t('home.greeting', 'Hi, {{name}} 👋').replace('{{name}}', displayName)}</Text>
+            <Text style={styles.greetingSubtitle}>
+              {role === 'parent'
+                ? t('home.parentSubtitle', 'Guide your family’s journey')
+                : t('home.studentSubtitle', 'Continue your daily practice')}
+            </Text>
           </View>
-          <View style={[styles.userBadge, { backgroundColor: colors.cardBackground }]}>
-            <Ionicons name="person-circle" size={18} color={colors.accent} />
-            <Text style={[styles.userName, { color: colors.text }]}>{user.isGuest ? t('home.guest', 'Guest') : user.name}</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.avatar}
+            onPress={() => navigation.navigate('Main', { screen: 'Profile' })}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.avatarText}>{initial}</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.welcomeSection}>
-          <Text style={[styles.welcomeText, { color: colors.text }]}>
-            {role === 'parent' ? t('home.parentWelcome', 'Welcome to the Parent Portal') : t('home.studentWelcome', 'Welcome to the Student Portal')}
-          </Text>
-          <Text style={[styles.welcomeSubtext, { color: colors.textSecondary }]}>
-            {role === 'parent'
-              ? t('home.parentWelcome.subtitle', 'Guide your family with structured spiritual content and insights')
-              : t('home.studentWelcome.subtitle', 'Explore the free experience and build your daily spiritual practice')}
-          </Text>
-        </View>
-
-        <View style={[styles.portalHero, { backgroundColor: colors.cardBackground }]}> 
-          <View>
-            <Text style={[styles.portalBadge, { color: colors.accent }]}> 
+        <View style={styles.statusRow}>
+          <View style={styles.statusPill}>
+            <Text style={styles.statusPillText}>
               {role === 'parent' ? t('home.portal.parent', 'Parent Portal') : t('home.portal.student', 'Student Portal')}
             </Text>
-            <Text style={[styles.portalTitle, { color: colors.text }]}>
-              {accessTier === 'paid' ? t('home.tier.paid', 'Paid Experience') : t('home.tier.free', 'Free Experience')}
-            </Text>
-            <Text style={[styles.portalSubtitle, { color: colors.textSecondary }]}>
-              {role === 'parent'
-                ? t('home.parentHero', 'Access premium content, parent guidance, and family-centered progress views.')
-                : t('home.studentHero', 'The free student path focuses on scripture, short-form content, and daily practice.')}
-            </Text>
           </View>
-          <View style={[styles.portalStatus, { borderColor: colors.border }]}> 
-            <Text style={[styles.portalStatusLabel, { color: colors.textSecondary }]}>{t('home.access', 'Access')}</Text>
-            <Text style={[styles.portalStatusValue, { color: colors.text }]}>
-              {role === 'parent' ? t('home.parentPaid', 'Parent Paid') : t('home.studentFree', 'Student Free')}
+          <View style={styles.statusPill}>
+            <Text style={styles.statusPillText}>
+              {accessTier === 'paid' ? t('home.tier.paid', 'Paid') : t('home.tier.free', 'Free')}
             </Text>
           </View>
         </View>
 
-        {role === 'parent' ? (
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}> 
-              <Text style={[styles.statValue, { color: colors.text }]}>12</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('home.parent.stat1', 'Lessons Shared')}</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}> 
-              <Text style={[styles.statValue, { color: colors.text }]}>4</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('home.parent.stat2', 'Weekly Check-ins')}</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: colors.cardBackground }]}> 
-              <Text style={[styles.statValue, { color: colors.text }]}>89%</Text>
-              <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('home.parent.stat3', 'Engagement')}</Text>
-            </View>
-          </View>
-        ) : (
-          <View style={[styles.unlockCard, { backgroundColor: colors.cardBackground }]}> 
-            <Ionicons name="sparkles" size={20} color={colors.accent} />
-            <Text style={[styles.unlockText, { color: colors.text }]}>
-              {t('home.unlockText', 'Parent Portal adds premium family guidance, progress views, and community tools.')}
-            </Text>
-          </View>
-        )}
+        <View style={styles.searchRow}>
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={t('home.searchPlaceholder', 'Search practices')}
+            placeholderTextColor={colors.textTertiary}
+            style={styles.searchInput}
+          />
+          <View style={styles.searchDivider} />
+          <TouchableOpacity onPress={resetFilters} style={styles.searchFilterButton}>
+            <Ionicons name="options-outline" size={20} color={colors.text} />
+          </TouchableOpacity>
+        </View>
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            {role === 'parent' ? t('home.parent.tools', 'Portal Tools') : t('home.student.tools', 'Free Experience')}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>
+            {role === 'parent' ? t('home.parent.tools', 'Portal Tools') : t('home.student.tools', 'Your Practices')}
           </Text>
-          <View style={styles.grid}>
-            {dashboardCards.map((card) => (
+          <TouchableOpacity onPress={resetFilters}>
+            <Text style={styles.sectionViewAll}>{t('home.viewAll', 'View all')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.pillsRow}>
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[styles.pill, activeCategory === category && styles.pillActive]}
+              onPress={() => setActiveCategory(category)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.pillText, activeCategory === category && styles.pillTextActive]}>
+                {categoryLabels[category]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {filteredCards.length === 0 ? (
+          <Text style={styles.emptyText}>{t('home.noResults', 'No matches found.')}</Text>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cardsRow}
+          >
+            {filteredCards.map((card) => (
               <TouchableOpacity
                 key={card.key}
-                style={[
-                  styles.gridCard,
-                  { backgroundColor: colors.cardBackground },
-                  card.locked && styles.gridCardLocked,
-                ]}
                 onPress={card.onPress}
                 disabled={card.locked}
+                activeOpacity={0.85}
+                style={[styles.card, card.locked && styles.cardLocked]}
               >
-                <View style={[styles.gridIconCircle, { backgroundColor: colors.primary }]}>
-                  <Ionicons name={card.icon} size={28} color={colors.accent} />
-                </View>
-                <Text style={[styles.gridTitle, { color: colors.text }]}>{card.title}</Text>
-                <Text style={[styles.gridSubtitle, { color: colors.textSecondary }]}>{card.subtitle}</Text>
-                {card.locked ? (
-                  <View style={styles.lockRow}>
-                    <Ionicons name="lock-closed" size={14} color={colors.accent} />
-                    <Text style={[styles.lockText, { color: colors.accent }]}>{t('home.locked', 'Locked')}</Text>
+                <LinearGradient colors={colors.cardGradient} style={styles.cardGradient}>
+                  <View style={styles.cardIconWrap}>
+                    <Ionicons name={card.icon} size={48} color={colors.accentText} />
                   </View>
-                ) : null}
+                  <View style={[styles.cardOverlay, { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.1)' }]}>
+                    <Text style={styles.cardTitle} numberOfLines={1}>{card.title}</Text>
+                    <Text style={styles.cardSubtitle} numberOfLines={2}>{card.subtitle}</Text>
+                  </View>
+                </LinearGradient>
               </TouchableOpacity>
             ))}
-          </View>
-        </View>
-
-        <View style={{ height: 30 }} />
+          </ScrollView>
+        )}
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
+  scrollContent: {
+    paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 50,
-    marginBottom: 10,
+    paddingHorizontal: 24,
+    paddingTop: 60,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  greetingBlock: {
+    flex: 1,
+    marginRight: 16,
   },
-  logo: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    marginRight: 12,
+  greeting: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.text,
   },
-  headerText: {
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  subtitle: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  userBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-  },
-  userName: {
-    marginLeft: 6,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  welcomeSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  welcomeSubtext: {
+  greetingSubtitle: {
     fontSize: 15,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
-  portalHero: {
-    marginHorizontal: 20,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 18,
-    gap: 16,
-  },
-  portalBadge: {
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  portalTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  portalSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  portalStatus: {
-    borderWidth: 1,
+  avatar: {
+    width: 48,
+    height: 48,
     borderRadius: 16,
-    padding: 14,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  portalStatusLabel: {
-    fontSize: 12,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  portalStatusValue: {
+  avatarText: {
+    color: colors.accentText,
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  statsRow: {
+  statusRow: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 10,
-    marginBottom: 18,
+    gap: 8,
+    paddingHorizontal: 24,
+    marginTop: 16,
   },
-  statCard: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 14,
+  statusPill: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginBottom: 4,
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
-  statLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  unlockCard: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 18,
+    marginHorizontal: 24,
+    marginTop: 20,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: 20,
+    height: 60,
+    paddingHorizontal: 18,
   },
-  unlockText: {
+  searchInput: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    color: colors.text,
   },
-  section: {
-    marginBottom: 24,
+  searchDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.border,
+    marginHorizontal: 12,
+  },
+  searchFilterButton: {
+    padding: 4,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    marginTop: 32,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+    color: colors.text,
   },
-  grid: {
+  sectionViewAll: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textTertiary,
+  },
+  pillsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: 12,
+    gap: 10,
+    paddingHorizontal: 24,
+    marginBottom: 20,
   },
-  gridCard: {
-    width: (screenWidth - 52) / 2,
+  pill: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 16,
-    padding: 16,
+    backgroundColor: colors.surfaceAlt,
+  },
+  pillActive: {
+    backgroundColor: colors.accent,
+  },
+  pillText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textTertiary,
+  },
+  pillTextActive: {
+    color: colors.accentText,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  cardsRow: {
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  card: {
+    width: CARD_WIDTH,
+    height: 320,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  cardLocked: {
+    opacity: 0.55,
+  },
+  cardGradient: {
+    flex: 1,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  gridCardLocked: {
-    opacity: 0.75,
-  },
-  gridIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
     justifyContent: 'center',
+    padding: 16,
+  },
+  cardIconWrap: {
+    flex: 1,
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
   },
-  gridTitle: {
-    fontSize: 15,
+  cardOverlay: {
+    alignSelf: 'stretch',
+    borderRadius: 16,
+    padding: 14,
+  },
+  cardTitle: {
+    color: colors.accentText,
+    fontSize: 16,
     fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 4,
   },
-  gridSubtitle: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  lockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 10,
-  },
-  lockText: {
-    fontSize: 12,
-    fontWeight: '700',
+  cardSubtitle: {
+    color: colors.cardSubtitle,
+    fontSize: 13,
+    marginTop: 4,
+    lineHeight: 18,
   },
 });

@@ -5,13 +5,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Alert,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
@@ -21,24 +19,34 @@ import { useLocalization } from '../contexts/LocalizationContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
+type AuthStep = 'email' | 'credentials' | 'code' | 'role';
+type AuthMode = 'login' | 'signup';
 type PortalRole = 'student' | 'parent';
-type AccessTier = 'free' | 'paid';
 
 interface AuthScreenProps {
   onLogin: (user: User) => void;
 }
 
+const DEFAULT_ROLE = 'student';
+const DEFAULT_ACCESS_TIER = 'free';
+const MEMBERSHIP_CODE = 'gfyl';
+
 export function AuthScreen({ onLogin }: AuthScreenProps) {
   const { t } = useLocalization();
-  const [isLogin, setIsLogin] = useState(true);
-  const [selectedRole, setSelectedRole] = useState<PortalRole>('student');
+  const [step, setStep] = useState<AuthStep>('email');
+  const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const selectedAccessTier: AccessTier = selectedRole === 'parent' ? 'paid' : 'free';
+  const [pendingUser, setPendingUser] = useState<any | null>(null);
+  const [isGuestFlow, setIsGuestFlow] = useState(false);
+  const [membershipCode, setMembershipCode] = useState('');
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [accessTierChoice, setAccessTierChoice] = useState<'free' | 'paid'>(DEFAULT_ACCESS_TIER);
+  const [selectedRole, setSelectedRole] = useState<PortalRole>(DEFAULT_ROLE);
   const redirectTo = useMemo(
     () => makeRedirectUri({ scheme: 'gfylmobile', path: 'auth/callback' }),
     []
@@ -48,8 +56,8 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     id: sessionUser.id,
     name: sessionUser.user_metadata?.name || fallbackName || sessionUser.email?.split('@')[0] || 'User',
     email: sessionUser.email || '',
-    role: sessionUser.user_metadata?.role || selectedRole,
-    accessTier: sessionUser.user_metadata?.accessTier || selectedAccessTier,
+    role: sessionUser.user_metadata?.role || DEFAULT_ROLE,
+    accessTier: sessionUser.user_metadata?.accessTier || DEFAULT_ACCESS_TIER,
   });
 
   const syncUserMetadata = async (sessionUser: any, preferredName?: string) => {
@@ -59,8 +67,8 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
       data: {
         ...sessionUser.user_metadata,
         name: resolvedName,
-        role: selectedRole,
-        accessTier: selectedAccessTier,
+        role: sessionUser.user_metadata?.role || DEFAULT_ROLE,
+        accessTier: sessionUser.user_metadata?.accessTier || DEFAULT_ACCESS_TIER,
       },
     });
 
@@ -82,16 +90,32 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     });
   };
 
+  const handleContinueEmail = () => {
+    const trimmed = email.trim();
+    if (!trimmed || !/^\S+@\S+\.\S+$/.test(trimmed)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+    setAuthError(null);
+    setStep('credentials');
+  };
+
+  const handleBackToEmail = () => {
+    setAuthError(null);
+    setPassword('');
+    setStep('email');
+  };
+
   const handleSubmit = async () => {
     setAuthError(null);
-    if (!email || !password || (!isLogin && !name)) {
+    if (!email || !password || (mode === 'signup' && !name)) {
       Alert.alert('Missing Info', 'Please fill out all required fields.');
       return;
     }
 
     setIsLoading(true);
     try {
-      if (isLogin) {
+      if (mode === 'login') {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -107,19 +131,15 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
           return;
         }
 
-        if (sessionUser) {
-          const enrichedUser = await syncUserMetadata(sessionUser);
-          await upsertProfile(enrichedUser);
-          onLogin(mapUser(enrichedUser));
-        } else {
-          Alert.alert('Login Failed', 'No user session found. Please try again.');
-        }
+        const enrichedUser = await syncUserMetadata(sessionUser);
+        await upsertProfile(enrichedUser);
+        onLogin(mapUser(enrichedUser));
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { name, role: selectedRole, accessTier: selectedAccessTier },
+            data: { name, role: DEFAULT_ROLE, accessTier: DEFAULT_ACCESS_TIER },
           },
         });
 
@@ -127,15 +147,14 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
 
         const sessionUser = data.user;
         if (sessionUser) {
-          const enrichedUser = await syncUserMetadata(sessionUser, name);
-          await upsertProfile(enrichedUser, name);
-
           if (data.session) {
-            onLogin(mapUser(enrichedUser, name));
+            setPendingUser(sessionUser);
+            setStep('code');
           } else {
+            await upsertProfile(sessionUser, name);
             Alert.alert('Check your email', 'Confirm your email to finish signing up.');
             setAuthError('Email confirmation required. Please verify your email and log in.');
-            setIsLogin(true);
+            setMode('login');
           }
         } else {
           const message = 'Sign up failed. No user record returned.';
@@ -203,11 +222,76 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
     }
   };
 
+  const handleCodeContinue = () => {
+    const trimmed = membershipCode.trim().toLowerCase();
+    if (trimmed.length === 0) {
+      setCodeError('Enter a code or tap Skip for now.');
+      return;
+    }
+    if (trimmed !== MEMBERSHIP_CODE) {
+      setCodeError('That code is not valid. Check it and try again, or skip for now.');
+      return;
+    }
+    setCodeError(null);
+    setAccessTierChoice('paid');
+    setStep('role');
+  };
+
+  const handleCodeSkip = () => {
+    setCodeError(null);
+    setAccessTierChoice('free');
+    setStep('role');
+  };
+
+  const handleFinishRole = async () => {
+    if (isGuestFlow) {
+      onLogin({
+        name: 'Demo User',
+        email: 'demo@radhagovind.com',
+        isGuest: true,
+        role: selectedRole,
+        accessTier: accessTierChoice,
+      });
+      return;
+    }
+
+    if (!pendingUser) return;
+
+    setAuthError(null);
+    setIsLoading(true);
+    try {
+      const { data: updatedData, error: updateError } = await supabase.auth.updateUser({
+        data: {
+          ...pendingUser.user_metadata,
+          name,
+          role: selectedRole,
+          accessTier: accessTierChoice,
+        },
+      });
+
+      if (updateError) throw updateError;
+
+      const finalUser = updatedData.user || pendingUser;
+      await upsertProfile(finalUser, name);
+      onLogin(mapUser(finalUser, name));
+    } catch (err: any) {
+      const message = err?.message || 'Unable to finish setting up your account.';
+      setAuthError(message);
+      Alert.alert('Setup Error', message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGuestLogin = () => {
+    setIsGuestFlow(true);
+    setAccessTierChoice(DEFAULT_ACCESS_TIER);
+    setSelectedRole(DEFAULT_ROLE);
+    setStep('code');
+  };
+
   return (
-    <LinearGradient
-      colors={['#172554', '#1e3a8a']}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -215,485 +299,495 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Logo/Header */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Image
-                source={{
-                  uri: 'https://images.unsplash.com/photo-1715628283743-00a42c986339?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsb3JkJTIwa3Jpc2huYSUyMHBhaW50aW5nfGVufDF8fHx8MTc2NTczOTc5OXww&ixlib=rb-4.1.0&q=80&w=1080',
-                }}
-                style={styles.logo}
-              />
-            </View>
-            <Text style={styles.title}>{t('auth.title', 'Gita For Youth Leadership')}</Text>
-            <Text style={styles.subtitle}>{t('auth.subtitle', 'Gita For Your Life')}</Text>
-          </View>
+          {step === 'credentials' && (
+            <TouchableOpacity style={styles.backButton} onPress={handleBackToEmail}>
+              <Ionicons name="chevron-back" size={26} color="#000" />
+            </TouchableOpacity>
+          )}
 
-          {/* Auth Form */}
-          <View style={styles.formContainer}>
-            <View style={styles.portalSection}>
-              <Text style={styles.portalSectionLabel}>{t('auth.experience', 'Choose your portal experience')}</Text>
-              <View style={styles.portalCardsRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.portalCard,
-                    selectedRole === 'student' && styles.portalCardActive,
-                  ]}
-                  onPress={() => setSelectedRole('student')}
-                >
-                  <Text style={styles.portalCardBadge}>{t('auth.free', 'Free')}</Text>
-                  <Ionicons name="school" size={24} color={selectedRole === 'student' ? '#fff' : '#fb923c'} />
-                  <Text style={styles.portalCardTitle}>{t('auth.studentPortal', 'Student Portal')}</Text>
-                  <Text style={styles.portalCardText}>{t('auth.studentPortalSubtitle', 'Scripture, Krishtok, meditation, and AI guidance.')}</Text>
-                </TouchableOpacity>
+          <View style={styles.logoBlob} />
 
-                <TouchableOpacity
-                  style={[
-                    styles.portalCard,
-                    selectedRole === 'parent' && styles.portalCardActive,
-                  ]}
-                  onPress={() => setSelectedRole('parent')}
-                >
-                  <Text style={styles.portalCardBadge}>{t('auth.paid', 'Paid')}</Text>
-                  <Ionicons name="people" size={24} color={selectedRole === 'parent' ? '#fff' : '#fb923c'} />
-                  <Text style={styles.portalCardTitle}>{t('auth.parentPortal', 'Parent Portal')}</Text>
-                  <Text style={styles.portalCardText}>{t('auth.parentPortalSubtitle', 'Family dashboards, premium content, and parent tools.')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+          {step === 'email' ? (
+            <>
+              <Text style={styles.title}>{t('auth.title', 'Log in or sign up')}</Text>
 
-            {/* Toggle Buttons */}
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                onPress={() => setIsLogin(true)}
-                style={[
-                  styles.toggleButton,
-                  isLogin && styles.toggleButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.toggleText,
-                    isLogin && styles.toggleTextActive,
-                  ]}
-                >
-                  {t('auth.login', 'Login')}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setIsLogin(false)}
-                style={[
-                  styles.toggleButton,
-                  !isLogin && styles.toggleButtonActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.toggleText,
-                    !isLogin && styles.toggleTextActive,
-                  ]}
-                >
-                  {t('auth.signup', 'Sign Up')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Name Input (Sign Up only) */}
-            {!isLogin && (
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('auth.fullName', 'Full Name')}</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="person-outline"
-                    size={20}
-                    color="#60a5fa"
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    value={name}
-                    onChangeText={setName}
-                    placeholder={t('auth.fullNamePlaceholder', 'Enter your name')}
-                    placeholderTextColor="#60a5fa"
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-            )}
-
-            {/* Email Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t('auth.email', 'Email')}</Text>
               <View style={styles.inputWrapper}>
-                <Ionicons
-                  name="mail-outline"
-                  size={20}
-                  color="#60a5fa"
-                  style={styles.inputIcon}
-                />
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
-                  placeholder={t('auth.emailPlaceholder', 'Enter your email')}
-                  placeholderTextColor="#60a5fa"
+                  placeholder={t('auth.emailPlaceholder', 'Email')}
+                  placeholderTextColor="#8a8a8a"
                   style={styles.input}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleContinueEmail}
                 />
+                {email.length > 0 && (
+                  <TouchableOpacity onPress={() => setEmail('')} style={styles.clearButton}>
+                    <Ionicons name="close" size={16} color="#fff" />
+                  </TouchableOpacity>
+                )}
               </View>
-            </View>
 
-            {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t('auth.password', 'Password')}</Text>
+              <TouchableOpacity style={styles.primaryButton} onPress={handleContinueEmail} activeOpacity={0.8}>
+                <Text style={styles.primaryButtonText}>{t('auth.continue', 'Continue')}</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.orText}>{t('auth.or', 'or')}</Text>
+
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() => handleOAuth('google')}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="logo-google" size={20} color="#000" />
+                <Text style={styles.socialButtonText}>{t('auth.google', 'Continue with Google')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.socialButton}
+                onPress={() => handleOAuth('apple')}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="logo-apple" size={20} color="#000" />
+                <Text style={styles.socialButtonText}>{t('auth.apple', 'Continue with Apple')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={handleGuestLogin} style={styles.guestLink}>
+                <Text style={styles.guestLinkText}>{t('auth.guest', 'Continue as Guest')}</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.terms}>
+                {t('auth.terms', 'By continuing, you agree to our Terms of Service and Privacy Policy')}
+              </Text>
+            </>
+          ) : step === 'credentials' ? (
+            <>
+              <Text style={styles.title}>
+                {mode === 'login' ? t('auth.loginTitle', 'Enter your password') : t('auth.signupTitle', 'Create your account')}
+              </Text>
+
+              <View style={styles.emailRow}>
+                <Text style={styles.emailRowText} numberOfLines={1}>
+                  {email}
+                </Text>
+                <TouchableOpacity onPress={handleBackToEmail}>
+                  <Text style={styles.editLink}>{t('auth.edit', 'Edit')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {mode === 'signup' && (
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder={t('auth.fullNamePlaceholder', 'Full name')}
+                    placeholderTextColor="#8a8a8a"
+                    style={styles.input}
+                  />
+                </View>
+              )}
+
               <View style={styles.inputWrapper}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={20}
-                  color="#60a5fa"
-                  style={styles.inputIcon}
-                />
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder={t('auth.passwordPlaceholder', 'Enter your password')}
-                  placeholderTextColor="#60a5fa"
-                  style={[styles.input, styles.passwordInput]}
+                  placeholder={t('auth.passwordPlaceholder', 'Password')}
+                  placeholderTextColor="#8a8a8a"
+                  style={styles.input}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
                 />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <Ionicons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color="#60a5fa"
-                  />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6b6b6b" />
                 </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Forgot Password */}
-            {isLogin && (
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>{t('auth.forgot', 'Forgot Password?')}</Text>
-              </TouchableOpacity>
-            )}
+              {mode === 'login' && (
+                <TouchableOpacity style={styles.forgotPassword}>
+                  <Text style={styles.forgotPasswordText}>{t('auth.forgot', 'Forgot Password?')}</Text>
+                </TouchableOpacity>
+              )}
 
-            {/* Submit Button */}
-            <TouchableOpacity onPress={handleSubmit} activeOpacity={0.8} disabled={isLoading}>
-              <LinearGradient
-                colors={['#f97316', '#ea580c']}
-                style={styles.submitButton}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={styles.submitButtonText}>
-                  {isLoading ? t('auth.pleaseWait', 'Please wait...') : isLogin ? t('auth.login', 'Login') : t('auth.signup', 'Sign Up')}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {authError && <Text style={styles.errorText}>{authError}</Text>}
-
-            {/* Social Login (Login only) */}
-            {isLogin && (
-              <View style={styles.socialContainer}>
-                <View style={styles.dividerContainer}>
-                  <View style={styles.divider} />
-                  <Text style={styles.dividerText}>{t('auth.orContinue', 'Or continue with')}</Text>
-                  <View style={styles.divider} />
-                </View>
-
-                <View style={styles.socialButtons}>
-                  <TouchableOpacity style={styles.socialButton} onPress={() => handleOAuth('google')} disabled={isLoading}>
-                    <Ionicons name="logo-google" size={16} color="#fff" />
-                    <Text style={styles.socialButtonText}>{t('auth.google', 'Google')}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.socialButton} onPress={() => handleOAuth('apple')} disabled={isLoading}>
-                    <Ionicons name="logo-apple" size={16} color="#fff" />
-                    <Text style={styles.socialButtonText}>{t('auth.apple', 'Apple')}</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.socialHelperText}>
-                  {t('auth.socialHelper', 'Complete provider setup in Supabase to finish enabling Google and Apple sign-in.')}
-                </Text>
-              </View>
-            )}
-
-            {/* Demo Login */}
-            <View style={styles.demoContainer}>
-              <Text style={styles.demoText}>{t('auth.demo', 'Quick Demo Login:')}</Text>
               <TouchableOpacity
-                onPress={() =>
-                  onLogin({ 
-                    name: 'Demo User', 
-                    email: 'demo@radhagovind.com',
-                    isGuest: true,
-                    role: 'student',
-                    accessTier: 'free',
-                  })
-                }
-                style={styles.demoButton}
+                style={styles.primaryButton}
+                onPress={handleSubmit}
+                activeOpacity={0.8}
+                disabled={isLoading}
               >
-                <Text style={styles.demoButtonText}>{t('auth.guest', 'Continue as Guest')}</Text>
+                <Text style={styles.primaryButtonText}>
+                  {isLoading
+                    ? t('auth.pleaseWait', 'Please wait...')
+                    : mode === 'login'
+                    ? t('auth.login', 'Log In')
+                    : t('auth.signup', 'Create Account')}
+                </Text>
               </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Terms */}
-          <Text style={styles.terms}>
-            {t('auth.terms', 'By continuing, you agree to our Terms of Service and Privacy Policy')}
-          </Text>
+              {authError && <Text style={styles.errorText}>{authError}</Text>}
+
+              <TouchableOpacity
+                onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                style={styles.modeSwitch}
+              >
+                <Text style={styles.modeSwitchText}>
+                  {mode === 'login'
+                    ? t('auth.switchToSignup', "New here? Create an account")
+                    : t('auth.switchToLogin', 'Already have an account? Log in')}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : null}
+
+          {step === 'code' && (
+            <>
+              <Text style={styles.title}>{t('auth.codeTitle', 'Have a membership code?')}</Text>
+              <Text style={styles.stepSubtitle}>
+                {t('auth.codeSubtitle', 'Enter your code to unlock paid access, or skip for now.')}
+              </Text>
+
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  value={membershipCode}
+                  onChangeText={(value) => {
+                    setMembershipCode(value);
+                    if (codeError) setCodeError(null);
+                  }}
+                  placeholder={t('auth.codePlaceholder', 'Enter code')}
+                  placeholderTextColor="#8a8a8a"
+                  style={styles.input}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              {codeError && <Text style={styles.errorText}>{codeError}</Text>}
+
+              <TouchableOpacity style={styles.primaryButton} onPress={handleCodeContinue} activeOpacity={0.8}>
+                <Text style={styles.primaryButtonText}>{t('auth.continue', 'Continue')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={handleCodeSkip} style={styles.modeSwitch}>
+                <Text style={styles.modeSwitchText}>{t('auth.skipCode', 'Skip for now')}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {step === 'role' && (
+            <>
+              <Text style={styles.title}>{t('auth.roleTitle', 'Choose your portal')}</Text>
+              <Text style={styles.stepSubtitle}>
+                {t('auth.roleSubtitle', "You can explore either experience — pick what fits you best.")}
+              </Text>
+
+              <View style={styles.roleCardsRow}>
+                <TouchableOpacity
+                  style={[styles.roleCard, selectedRole === 'student' && styles.roleCardActive]}
+                  onPress={() => setSelectedRole('student')}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.roleCardBadge, selectedRole === 'student' && styles.roleCardBadgeActive]}>
+                    {t('auth.free', 'Free')}
+                  </Text>
+                  <Ionicons name="school" size={26} color={selectedRole === 'student' ? '#fff' : '#000'} />
+                  <Text style={[styles.roleCardTitle, selectedRole === 'student' && styles.roleCardTitleActive]}>
+                    {t('auth.studentPortal', 'Student Portal')}
+                  </Text>
+                  <Text style={[styles.roleCardText, selectedRole === 'student' && styles.roleCardTextActive]}>
+                    {t('auth.studentPortalSubtitle', 'Scripture, KrishTok, meditation, and AI guidance.')}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.roleCard,
+                    selectedRole === 'parent' && styles.roleCardActive,
+                    accessTierChoice !== 'paid' && styles.roleCardLocked,
+                  ]}
+                  onPress={() => setSelectedRole('parent')}
+                  activeOpacity={0.85}
+                  disabled={accessTierChoice !== 'paid'}
+                >
+                  <Text style={[styles.roleCardBadge, selectedRole === 'parent' && styles.roleCardBadgeActive]}>
+                    {t('auth.paid', 'Paid')}
+                  </Text>
+                  <Ionicons
+                    name={accessTierChoice !== 'paid' ? 'lock-closed' : 'people'}
+                    size={26}
+                    color={selectedRole === 'parent' ? '#fff' : accessTierChoice !== 'paid' ? '#aaaaaa' : '#000'}
+                  />
+                  <Text
+                    style={[
+                      styles.roleCardTitle,
+                      selectedRole === 'parent' && styles.roleCardTitleActive,
+                      accessTierChoice !== 'paid' && styles.roleCardTitleLocked,
+                    ]}
+                  >
+                    {t('auth.parentPortal', 'Parent Portal')}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.roleCardText,
+                      selectedRole === 'parent' && styles.roleCardTextActive,
+                      accessTierChoice !== 'paid' && styles.roleCardTextLocked,
+                    ]}
+                  >
+                    {accessTierChoice !== 'paid'
+                      ? t('auth.parentPortalLocked', 'Enter a membership code to unlock')
+                      : t('auth.parentPortalSubtitle', 'Family dashboards, premium content, and parent tools.')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={handleFinishRole}
+                activeOpacity={0.8}
+                disabled={isLoading}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {isLoading ? t('auth.pleaseWait', 'Please wait...') : t('auth.finish', 'Continue to GFYL')}
+                </Text>
+              </TouchableOpacity>
+
+              {authError && <Text style={styles.errorText}>{authError}</Text>}
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#ffffff',
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 16,
-    justifyContent: 'center',
+    padding: 24,
+    paddingTop: 80,
+    alignItems: 'stretch',
   },
-  header: {
-    alignItems: 'center',
+  backButton: {
+    position: 'absolute',
+    top: 24,
+    left: 16,
+    padding: 8,
+  },
+  logoBlob: {
+    width: 88,
+    height: 88,
+    backgroundColor: '#000000',
+    borderTopLeftRadius: 44,
+    borderTopRightRadius: 28,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 44,
+    alignSelf: 'center',
     marginBottom: 32,
   },
-  logoContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    borderWidth: 4,
-    borderColor: '#f97316',
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  logo: {
-    width: '100%',
-    height: '100%',
-  },
   title: {
-    fontSize: 24,
-    color: '#ffffff',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#bfdbfe',
-  },
-  formContainer: {
-    backgroundColor: 'rgba(30, 58, 138, 0.5)',
-    borderRadius: 16,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.5)',
-  },
-  portalSection: {
-    marginBottom: 20,
-  },
-  portalSectionLabel: {
-    fontSize: 14,
-    color: '#bfdbfe',
-    marginBottom: 10,
-    fontWeight: '600',
-  },
-  portalCardsRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  portalCard: {
-    flex: 1,
-    backgroundColor: 'rgba(23, 37, 84, 0.6)',
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.5)',
-    borderRadius: 14,
-    padding: 14,
-    minHeight: 150,
-  },
-  portalCardActive: {
-    backgroundColor: '#ea580c',
-    borderColor: '#fdba74',
-  },
-  portalCardBadge: {
-    color: '#fde68a',
-    fontSize: 12,
+    fontSize: 26,
     fontWeight: '800',
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  portalCardTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  portalCardText: {
-    color: '#dbeafe',
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  errorText: {
-    color: '#fca5a5',
-    fontSize: 13,
+    color: '#000000',
     textAlign: 'center',
-    marginTop: 10,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    marginBottom: 24,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  toggleButtonActive: {
-    backgroundColor: '#f97316',
-  },
-  toggleText: {
-    color: '#bfdbfe',
-  },
-  toggleTextActive: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    color: '#bfdbfe',
-    marginBottom: 8,
+    marginBottom: 28,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(23, 37, 84, 0.5)',
-    borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.5)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-  inputIcon: {
-    marginRight: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    height: 68,
+    marginBottom: 16,
   },
   input: {
     flex: 1,
-    paddingVertical: 12,
-    color: '#ffffff',
-    fontSize: 14,
+    fontSize: 19,
+    color: '#000000',
+    height: '100%',
   },
-  passwordInput: {
-    paddingRight: 40,
+  clearButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#b0b0b0',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  eyeIcon: {
-    position: 'absolute',
-    right: 12,
+  eyeButton: {
     padding: 4,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-  },
-  forgotPasswordText: {
-    fontSize: 14,
-    color: '#93c5fd',
-  },
-  submitButton: {
-    paddingVertical: 12,
+  primaryButton: {
+    backgroundColor: '#000000',
     borderRadius: 12,
+    height: 56,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
   },
-  submitButtonText: {
+  primaryButtonText: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
-  socialContainer: {
-    marginTop: 24,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#1d4ed8',
-  },
-  dividerText: {
-    fontSize: 14,
-    color: '#93c5fd',
-    marginHorizontal: 8,
-  },
-  socialButtons: {
-    flexDirection: 'row',
-    gap: 12,
+  orText: {
+    textAlign: 'center',
+    color: '#8a8a8a',
+    fontSize: 15,
+    marginVertical: 20,
   },
   socialButton: {
-    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(23, 37, 84, 0.5)',
+    justifyContent: 'center',
+    gap: 10,
     borderWidth: 1,
-    borderColor: 'rgba(30, 64, 175, 0.5)',
-    paddingVertical: 12,
-    borderRadius: 8,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    height: 56,
+    marginBottom: 14,
   },
   socialButtonText: {
-    color: '#ffffff',
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  guestLink: {
+    alignSelf: 'center',
+    marginTop: 8,
+    padding: 8,
+  },
+  guestLinkText: {
+    color: '#6b6b6b',
     fontSize: 14,
-  },
-  socialHelperText: {
-    color: '#93c5fd',
-    fontSize: 12,
-    marginTop: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-  },
-  demoContainer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#1d4ed8',
-  },
-  demoText: {
-    fontSize: 12,
-    color: '#93c5fd',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  demoButton: {
-    backgroundColor: 'rgba(30, 64, 175, 0.5)',
-    borderWidth: 1,
-    borderColor: '#1d4ed8',
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  demoButtonText: {
-    color: '#bfdbfe',
-    fontSize: 14,
-    textAlign: 'center',
+    fontWeight: '600',
   },
   terms: {
     fontSize: 12,
-    color: '#93c5fd',
+    color: '#9a9a9a',
     textAlign: 'center',
+    marginTop: 28,
+    lineHeight: 18,
+  },
+  emailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    gap: 10,
+  },
+  emailRowText: {
+    fontSize: 15,
+    color: '#4b4b4b',
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  editLink: {
+    fontSize: 15,
+    color: '#000000',
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+    marginTop: -8,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#6b6b6b',
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 14,
+  },
+  modeSwitch: {
+    alignSelf: 'center',
     marginTop: 24,
+    padding: 8,
+  },
+  modeSwitchText: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '600',
+  },
+  stepSubtitle: {
+    fontSize: 14,
+    color: '#6b6b6b',
+    textAlign: 'center',
+    marginTop: -18,
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  roleCardsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  roleCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 16,
+    padding: 16,
+    minHeight: 170,
+  },
+  roleCardActive: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  roleCardLocked: {
+    backgroundColor: '#f7f7f7',
+    borderColor: '#e0e0e0',
+  },
+  roleCardTitleLocked: {
+    color: '#aaaaaa',
+  },
+  roleCardTextLocked: {
+    color: '#aaaaaa',
+  },
+  roleCardBadge: {
+    color: '#8a8a8a',
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 12,
+  },
+  roleCardBadgeActive: {
+    color: '#cccccc',
+  },
+  roleCardTitle: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  roleCardTitleActive: {
+    color: '#ffffff',
+  },
+  roleCardText: {
+    color: '#6b6b6b',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  roleCardTextActive: {
+    color: '#dddddd',
   },
 });

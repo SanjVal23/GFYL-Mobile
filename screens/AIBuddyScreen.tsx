@@ -7,24 +7,30 @@ import {
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   ActivityIndicator,
   Modal,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { Message, Suggestion } from '../types';
 import { getChatbotResponse } from '../services/geminiService';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../services/supabaseClient';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
-const initialSuggestions: Suggestion[] = [
-  { id: '1', text: 'What is karma yoga?' },
-  { id: '2', text: 'Explain Chapter 2 of Bhagavad Gita' },
-  { id: '3', text: 'How to practice meditation?' },
-  { id: '4', text: 'What is the path to liberation?' },
+type QuickPrompt = Suggestion & { label: string; icon: keyof typeof Ionicons.glyphMap };
+
+const initialSuggestions: QuickPrompt[] = [
+  { id: '1', label: 'Karma Yoga', text: 'What is karma yoga?', icon: 'body-outline' },
+  { id: '2', label: 'Chapter 2', text: 'Explain Chapter 2 of Bhagavad Gita', icon: 'book-outline' },
+  { id: '3', label: 'Meditation', text: 'How to practice meditation?', icon: 'leaf-outline' },
+  { id: '4', label: 'Liberation', text: 'What is the path to liberation?', icon: 'sparkles-outline' },
 ];
 
 const WELCOME_MESSAGE: Message = {
@@ -51,14 +57,18 @@ const sortByUpdated = (items: ChatConversation[]) =>
   [...items].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
 export default function AIBuddyScreen() {
+  const navigation = useNavigation();
   const { user } = useUser();
   const { t } = useLocalization();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string>('');
   const [historyVisible, setHistoryVisible] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const pendingScrollMessageId = useRef<string | null>(null);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackTargetId, setFeedbackTargetId] = useState<string | null>(null);
   const [feedbackRating, setFeedbackRating] = useState<'up' | 'down' | null>(null);
@@ -100,9 +110,39 @@ export default function AIBuddyScreen() {
     setHistoryVisible(false);
   };
 
+  const deleteConversation = (conversationId: string) => {
+    setConversations((prev) => {
+      const remaining = prev.filter((item) => item.id !== conversationId);
+
+      if (conversationId !== activeConversationId) {
+        return remaining;
+      }
+
+      if (remaining.length > 0) {
+        setActiveConversationId(sortByUpdated(remaining)[0].id);
+        return remaining;
+      }
+
+      const fresh = createNewConversation();
+      setActiveConversationId(fresh.id);
+      return [fresh];
+    });
+  };
+
   useEffect(() => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+    scrollViewRef.current?.scrollToEnd({ animated: false });
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const subscription = Keyboard.addListener(showEvent, () => {
+      if (!pendingScrollMessageId.current) {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     const loadConversations = async () => {
@@ -177,6 +217,7 @@ export default function AIBuddyScreen() {
     };
 
     const contextMessages = [...activeConversation.messages, userMessage];
+    pendingScrollMessageId.current = userMessage.id;
 
     patchConversation(activeConversation.id, (conversation) => ({
       ...conversation,
@@ -242,45 +283,73 @@ export default function AIBuddyScreen() {
   };
 
   const visibleConversations = sortByUpdated(conversations);
+  const isFreshConversation = messages.length === 1;
 
   return (
-    <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.headerTopRow}>
-          <TouchableOpacity style={styles.headerActionButton} onPress={() => setHistoryVisible(true)}>
-            <Ionicons name="time-outline" size={18} color="#fff" />
-            <Text style={styles.headerActionText}>{t('ai.history', 'History')}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.headerActionButton} onPress={startNewConversation}>
-            <Ionicons name="add-circle-outline" size={18} color="#fff" />
-            <Text style={styles.headerActionText}>{t('ai.newChat', 'New Chat')}</Text>
-          </TouchableOpacity>
+        <View style={styles.topBar}>
+          {navigation.canGoBack() && (
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+              <Ionicons name="chevron-back" size={22} color={colors.text} />
+            </TouchableOpacity>
+          )}
         </View>
 
-        <View style={styles.header}>
-          <View style={styles.aiIcon}>
-            <Ionicons name="chatbubbles" size={40} color="#fff" />
-          </View>
-          <Text style={styles.headerTitle}>{t('ai.title', 'Krishna - Your Spiritual BFF')}</Text>
-          <Text style={styles.headerSubtitle}>{t('ai.subtitle', 'Guidance from the Bhagavad Gita')}</Text>
-          {activeConversation ? (
-            <Text style={styles.activeConversationTitle}>{activeConversation.title}</Text>
-          ) : null}
-        </View>
-
+        {isFreshConversation ? (
+          <ScrollView
+            style={styles.heroScroll}
+            contentContainerStyle={styles.heroContainer}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+          >
+            <Image
+              source={require('../assets/krishna-hero.png')}
+              style={styles.heroImage}
+              resizeMode="contain"
+            />
+            <Text style={styles.heroTitle}>{t('ai.title', 'Welcome to Krishly')}</Text>
+            <Text style={styles.heroSubtitle}>{t('ai.subtitle', 'Ask, reflect, and grow with wisdom.')}</Text>
+            <View style={styles.heroSuggestionsGrid}>
+              {initialSuggestions.map((suggestion) => (
+                <TouchableOpacity
+                  key={suggestion.id}
+                  style={styles.heroSuggestionPill}
+                  onPress={() => handleSuggestionPress(suggestion.text)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name={suggestion.icon} size={16} color={colors.text} />
+                  <Text style={styles.heroSuggestionText}>{suggestion.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        ) : (
         <ScrollView
           ref={scrollViewRef}
           style={styles.messagesContainer}
-          onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+          keyboardDismissMode="on-drag"
         >
+          <Image
+            source={require('../assets/krishna-hero.png')}
+            style={styles.chatTopImage}
+            resizeMode="contain"
+          />
           {messages.map((message) => (
             <View
               key={message.id}
+              onLayout={(event) => {
+                if (message.id === pendingScrollMessageId.current) {
+                  const y = event.nativeEvent.layout.y;
+                  pendingScrollMessageId.current = null;
+                  scrollViewRef.current?.scrollTo({ y: Math.max(y - 12, 0), animated: true });
+                }
+              }}
               style={[
                 styles.messageBubble,
                 message.isUser ? styles.userMessage : styles.aiMessage,
@@ -288,8 +357,8 @@ export default function AIBuddyScreen() {
             >
               {!message.isUser && (
                 <View style={styles.aiLabel}>
-                  <Ionicons name="flash" size={16} color="#fb923c" />
-                  <Text style={styles.aiLabelText}>AI Buddy</Text>
+                  <Ionicons name="sparkles" size={14} color={colors.text} />
+                  <Text style={styles.aiLabelText}>Krishly</Text>
                 </View>
               )}
               <Text
@@ -306,7 +375,7 @@ export default function AIBuddyScreen() {
                   <TouchableOpacity
                     style={[
                       styles.feedbackButton,
-                      message.id === feedbackTargetId && feedbackRating === 'up' && styles.feedbackButtonActiveUp,
+                      message.id === feedbackTargetId && feedbackRating === 'up' && styles.feedbackButtonActive,
                     ]}
                     onPress={() => {
                       setFeedbackTargetId(message.id);
@@ -317,17 +386,15 @@ export default function AIBuddyScreen() {
                   >
                     <Ionicons
                       name="thumbs-up"
-                      size={16}
-                      color={message.id === feedbackTargetId && feedbackRating === 'up' ? '#fff' : '#94a3b8'}
-                      style={styles.feedbackIcon}
+                      size={14}
+                      color={message.id === feedbackTargetId && feedbackRating === 'up' ? colors.accentText : colors.textSecondary}
                     />
-                    <Text style={[styles.feedbackCount, message.id === feedbackTargetId && feedbackRating === 'up' && styles.feedbackCountActive]}> </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[
                       styles.feedbackButton,
-                      message.id === feedbackTargetId && feedbackRating === 'down' && styles.feedbackButtonActiveDown,
+                      message.id === feedbackTargetId && feedbackRating === 'down' && styles.feedbackButtonActive,
                     ]}
                     onPress={() => {
                       setFeedbackTargetId(message.id);
@@ -338,11 +405,9 @@ export default function AIBuddyScreen() {
                   >
                     <Ionicons
                       name="thumbs-down"
-                      size={16}
-                      color={message.id === feedbackTargetId && feedbackRating === 'down' ? '#fff' : '#94a3b8'}
-                      style={styles.feedbackIcon}
+                      size={14}
+                      color={message.id === feedbackTargetId && feedbackRating === 'down' ? colors.accentText : colors.textSecondary}
                     />
-                    <Text style={[styles.feedbackCount, message.id === feedbackTargetId && feedbackRating === 'down' && styles.feedbackCountActive]}> </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -350,54 +415,59 @@ export default function AIBuddyScreen() {
           ))}
           {isLoading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#fb923c" />
+              <ActivityIndicator size="small" color={colors.text} />
               <Text style={styles.loadingText}>Thinking...</Text>
             </View>
           )}
         </ScrollView>
-
-        {messages.length === 1 && (
-          <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsTitle}>Suggestions:</Text>
-            <View style={styles.suggestionsGrid}>
-              {initialSuggestions.map((suggestion) => (
-                <TouchableOpacity
-                  key={suggestion.id}
-                  style={styles.suggestionButton}
-                  onPress={() => handleSuggestionPress(suggestion.text)}
-                >
-                  <Ionicons name="sparkles" size={16} color="#fb923c" />
-                  <Text style={styles.suggestionText}>{suggestion.text}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
         )}
 
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder={t('ai.placeholder', 'Ask me anything...')}
-            placeholderTextColor="#94a3b8"
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-            onPress={sendMessage}
-            disabled={!inputText.trim() || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim() ? '#fff' : '#64748b'}
-              />
-            )}
-          </TouchableOpacity>
+        <View style={styles.bottomBar}>
+          <View style={styles.quickActionsRow}>
+            <TouchableOpacity style={styles.quickActionButton} onPress={startNewConversation} activeOpacity={0.85}>
+              <Ionicons name="add" size={20} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickActionButton} onPress={() => setHistoryVisible(true)} activeOpacity={0.85}>
+              <Ionicons name="time-outline" size={18} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputPill}>
+            <TextInput
+              style={styles.input}
+              placeholder={t('ai.placeholder', 'Type your question...')}
+              placeholderTextColor={colors.textSecondary}
+              value={inputText}
+              onChangeText={setInputText}
+              onFocus={() => {
+                if (!pendingScrollMessageId.current) {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }
+              }}
+              onContentSizeChange={() => {
+                if (!pendingScrollMessageId.current) {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }
+              }}
+              multiline
+            />
+            <TouchableOpacity
+              style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+              onPress={sendMessage}
+              disabled={!inputText.trim() || isLoading}
+              activeOpacity={0.85}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color={colors.accentText} />
+              ) : (
+                <Ionicons
+                  name="send"
+                  size={18}
+                  color={inputText.trim() ? colors.accentText : colors.textTertiary}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -407,40 +477,67 @@ export default function AIBuddyScreen() {
         animationType="slide"
         onRequestClose={() => setHistoryVisible(false)}
       >
+        <GestureHandlerRootView style={styles.gestureRoot}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.historyHeaderRow}>
               <Text style={styles.modalTitle}>{t('ai.savedConversations', 'Saved Conversations')}</Text>
               <TouchableOpacity onPress={startNewConversation}>
-                <Ionicons name="add-circle-outline" size={22} color="#fb923c" />
+                <Ionicons name="add-circle-outline" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.historyList}>
               {visibleConversations.map((conversation) => (
-                <TouchableOpacity
+                <Swipeable
                   key={conversation.id}
-                  style={[
-                    styles.historyItem,
-                    conversation.id === activeConversationId && styles.historyItemActive,
-                  ]}
-                  onPress={() => {
-                    setActiveConversationId(conversation.id);
-                    setHistoryVisible(false);
-                  }}
+                  overshootRight={false}
+                  renderRightActions={() => (
+                    <TouchableOpacity
+                      style={styles.deleteAction}
+                      onPress={() => deleteConversation(conversation.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="trash-outline" size={20} color="#fff" />
+                    </TouchableOpacity>
+                  )}
                 >
-                  <Ionicons
-                    name="chatbox-ellipses-outline"
-                    size={18}
-                    color={conversation.id === activeConversationId ? '#fb923c' : '#94a3b8'}
-                  />
-                  <View style={styles.historyTextWrap}>
-                    <Text style={styles.historyTitle}>{conversation.title}</Text>
-                    <Text style={styles.historyMeta}>
-                      {new Date(conversation.updatedAt).toLocaleString()} • {conversation.messages.length} msgs
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.historyItem,
+                      conversation.id === activeConversationId && styles.historyItemActive,
+                    ]}
+                    onPress={() => {
+                      setActiveConversationId(conversation.id);
+                      setHistoryVisible(false);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="chatbox-ellipses-outline"
+                      size={18}
+                      color={conversation.id === activeConversationId ? colors.accentText : colors.textSecondary}
+                    />
+                    <View style={styles.historyTextWrap}>
+                      <Text
+                        style={[
+                          styles.historyTitle,
+                          conversation.id === activeConversationId && styles.historyTitleActive,
+                        ]}
+                      >
+                        {conversation.title}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.historyMeta,
+                          conversation.id === activeConversationId && styles.historyMetaActive,
+                        ]}
+                      >
+                        {new Date(conversation.updatedAt).toLocaleString()} • {conversation.messages.length} msgs
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </Swipeable>
               ))}
             </ScrollView>
 
@@ -449,6 +546,7 @@ export default function AIBuddyScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        </GestureHandlerRootView>
       </Modal>
 
       <Modal
@@ -478,6 +576,7 @@ export default function AIBuddyScreen() {
                       setSelectedReasons((prev) => [...prev, reason]);
                     }
                   }}
+                  activeOpacity={0.85}
                 >
                   <Text style={[styles.reasonText, selectedReasons.includes(reason) && styles.reasonTextActive]}>{reason}</Text>
                 </TouchableOpacity>
@@ -487,7 +586,7 @@ export default function AIBuddyScreen() {
             <TextInput
               style={styles.otherInput}
               placeholder="Provide additional feedback"
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={colors.textSecondary}
               multiline
               value={otherFeedback}
               onChangeText={setOtherFeedback}
@@ -534,9 +633,10 @@ export default function AIBuddyScreen() {
                   }
                 }}
                 disabled={!feedbackRating || feedbackSubmitting}
+                activeOpacity={0.85}
               >
                 {feedbackSubmitting ? (
-                  <ActivityIndicator size="small" color="#fff" />
+                  <ActivityIndicator size="small" color={colors.accentText} />
                 ) : (
                   <Text style={styles.submitButtonText}>Submit</Text>
                 )}
@@ -554,83 +654,107 @@ export default function AIBuddyScreen() {
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
   },
-  headerTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingTop: 14,
+  topBar: {
+    paddingHorizontal: 20,
+    paddingTop: 60,
   },
-  headerActionButton: {
-    flexDirection: 'row',
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#1e40af',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  headerActionText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  header: {
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 15,
-  },
-  aiIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#fb923c',
     justifyContent: 'center',
+  },
+  heroScroll: {
+    flex: 1,
+  },
+  heroContainer: {
+    flexGrow: 1,
     alignItems: 'center',
-    marginBottom: 10,
+    justifyContent: 'center',
+    paddingHorizontal: 32,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+  heroImage: {
+    width: 220,
+    height: 220,
+    marginBottom: 12,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#cbd5e1',
-    marginTop: 4,
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
   },
-  activeConversationTitle: {
-    fontSize: 12,
-    color: '#93c5fd',
+  heroSubtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
     marginTop: 8,
+    marginBottom: 28,
+    textAlign: 'center',
+  },
+  heroSuggestionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  heroSuggestionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  heroSuggestionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
   messagesContainer: {
     flex: 1,
-    paddingHorizontal: 15,
+    paddingHorizontal: 20,
+  },
+  chatTopImage: {
+    width: 220,
+    height: 220,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 12,
   },
   messageBubble: {
     marginVertical: 8,
-    padding: 15,
-    borderRadius: 16,
+    padding: 16,
+    borderRadius: 20,
     maxWidth: '85%',
   },
   aiMessage: {
-    backgroundColor: '#1e40af',
+    backgroundColor: colors.surfaceAlt,
     alignSelf: 'flex-start',
+    borderBottomLeftRadius: 6,
   },
   userMessage: {
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     alignSelf: 'flex-end',
+    borderBottomRightRadius: 6,
   },
   aiLabel: {
     flexDirection: 'row',
@@ -639,145 +763,130 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   aiLabelText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fb923c',
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   messageText: {
     fontSize: 15,
-    color: '#e2e8f0',
+    color: colors.text,
     lineHeight: 22,
   },
   userMessageText: {
-    color: '#fff',
+    color: colors.accentText,
   },
-  suggestionsContainer: {
-    padding: 15,
+  bottomBar: {
+    padding: 20,
+    paddingTop: 10,
   },
-  suggestionsTitle: {
-    fontSize: 14,
-    color: '#cbd5e1',
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
     marginBottom: 10,
   },
-  suggestionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  suggestionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1e40af',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+  quickActionButton: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
-    gap: 6,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  suggestionText: {
-    fontSize: 13,
-    color: '#e2e8f0',
-  },
-  inputContainer: {
+  inputPill: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 15,
-    gap: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 28,
+    padding: 6,
+    gap: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: '#1e40af',
-    borderRadius: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 15,
-    color: '#fff',
+    color: colors.text,
     maxHeight: 100,
   },
   sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#fb923c',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendButtonDisabled: {
-    backgroundColor: '#334155',
+    backgroundColor: colors.border,
   },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#1e40af',
-    paddingHorizontal: 15,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 16,
+    borderRadius: 20,
     marginVertical: 8,
     gap: 10,
   },
   loadingText: {
     fontSize: 14,
-    color: '#cbd5e1',
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   feedbackRow: {
     flexDirection: 'row',
-    marginTop: 8,
+    marginTop: 10,
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 8,
   },
   feedbackButton: {
-    flexDirection: 'row',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.04)',
+    borderColor: colors.border,
   },
-  feedbackIcon: {
-    marginRight: 6,
+  feedbackButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
-  feedbackCount: {
-    color: 'transparent',
-    fontSize: 12,
-  },
-  feedbackCountActive: {
-    color: '#fff',
-  },
-  feedbackButtonActiveUp: {
-    backgroundColor: '#1e3a8a',
-    borderColor: '#214d8f',
-  },
-  feedbackButtonActiveDown: {
-    backgroundColor: '#172554',
-    borderColor: '#102040',
+  gestureRoot: {
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
     width: '100%',
     maxHeight: '80%',
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
   },
   modalTitle: {
-    color: '#fff',
-    fontSize: 16,
-    marginBottom: 12,
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '800',
+    marginBottom: 14,
   },
   historyHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   historyList: {
     marginBottom: 12,
@@ -785,60 +894,78 @@ const styles = StyleSheet.create({
   historyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     borderWidth: 1,
-    borderColor: '#223248',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
   },
   historyItemActive: {
-    borderColor: '#fb923c',
-    backgroundColor: '#152238',
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
+  },
+  deleteAction: {
+    width: 64,
+    marginBottom: 10,
+    marginLeft: 8,
+    borderRadius: 16,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   historyTextWrap: {
     flex: 1,
   },
   historyTitle: {
-    color: '#e2e8f0',
+    color: colors.text,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  historyTitleActive: {
+    color: colors.accentText,
   },
   historyMeta: {
-    color: '#94a3b8',
+    color: colors.textSecondary,
     fontSize: 11,
-    marginTop: 2,
+    marginTop: 3,
+  },
+  historyMetaActive: {
+    color: colors.accentText,
   },
   reasonsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 14,
   },
   reasonTag: {
     borderWidth: 1,
-    borderColor: '#334155',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    borderColor: colors.border,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 999,
   },
   reasonTagActive: {
-    borderColor: '#fb923c',
-    backgroundColor: '#1e3a8a',
+    borderColor: colors.accent,
+    backgroundColor: colors.accent,
   },
   reasonText: {
-    color: '#cbd5e1',
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
   },
   reasonTextActive: {
-    color: '#fb923c',
+    color: colors.accentText,
   },
   otherInput: {
-    backgroundColor: '#0b1220',
-    color: '#e2e8f0',
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: colors.surfaceAlt,
+    color: colors.text,
+    borderRadius: 14,
+    padding: 14,
     minHeight: 80,
-    marginBottom: 12,
+    marginBottom: 16,
+    fontSize: 14,
   },
   modalActions: {
     flexDirection: 'row',
@@ -846,24 +973,25 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   submitButton: {
-    backgroundColor: '#fb923c',
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   submitButtonDisabled: {
-    backgroundColor: '#334155',
+    backgroundColor: colors.border,
   },
   submitButtonText: {
-    color: '#071033',
-    fontWeight: '600',
+    color: colors.accentText,
+    fontWeight: '700',
   },
   cancelButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
   },
   cancelButtonText: {
-    color: '#cbd5e1',
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
 });

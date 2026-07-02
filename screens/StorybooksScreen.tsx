@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   Linking,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 type Storybook = {
   id: string;
@@ -48,22 +48,10 @@ const storybooksData: Storybook[] = [
   },
 ];
 
-const getAgeColor = (ageGroup: string) => {
-  switch (ageGroup) {
-    case '5+':
-      return '#34d399'; // green
-    case '6+':
-      return '#3b82f6'; // blue
-    case '8+':
-      return '#fbbf24'; // yellow
-    case '10+':
-      return '#ef4444'; // red
-    default:
-      return '#94a3b8'; // gray
-  }
-};
-
 export default function StorybooksScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const openPdf = (url: string) => {
     Linking.openURL(url).catch((err) =>
       console.error('Failed to open URL:', err)
@@ -71,18 +59,16 @@ export default function StorybooksScreen() {
   };
 
   return (
-    <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Gita Storybooks</Text>
-        <Text style={styles.headerSubtitle}>Stories for Kids</Text>
+        <Text style={styles.headerSubtitle}>Stories for Kids · Free &amp; Paid</Text>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {storybooksData.map((book) => (
           <View key={book.id} style={styles.bookCard}>
-            <View
-              style={[styles.ageBadge, { backgroundColor: getAgeColor(book.ageGroup) }]}
-            >
+            <View style={styles.ageBadge}>
               <Text style={styles.ageText}>{book.ageGroup}</Text>
             </View>
 
@@ -91,75 +77,129 @@ export default function StorybooksScreen() {
               <Text style={styles.bookDescription}>{book.description}</Text>
 
               <View style={styles.bookStats}>
-                <Ionicons name="book-outline" size={16} color="#94a3b8" />
+                <Ionicons name="book-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.bookStatsText}>{book.pages} pages</Text>
               </View>
 
               {book.recommended && (
                 <View style={styles.recommendedBadge}>
-                  <Ionicons name="star" size={16} color="#fbbf24" />
+                  <Ionicons name="star" size={14} color={colors.text} />
                   <Text style={styles.recommendedText}>Recommended</Text>
                 </View>
               )}
             </View>
 
             <TouchableOpacity
-              style={[styles.actionButton, styles.readButton]}
+              style={styles.readButton}
               onPress={() => openPdf(book.pdfUrl)}
+              activeOpacity={0.85}
             >
-              <Text style={styles.actionButtonText}>Read</Text>
+              <Text style={styles.readButtonText}>Read</Text>
             </TouchableOpacity>
-
-            <Ionicons name="chevron-forward" size={24} color="#fb923c" />
           </View>
         ))}
         <View style={{ height: 20 }} />
       </ScrollView>
-    </LinearGradient>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { padding: 20, paddingTop: 0 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
-  headerSubtitle: { fontSize: 14, color: '#cbd5e1', marginTop: 4 },
-  scrollView: { flex: 1 },
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
   bookCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e40af',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 15,
-    borderRadius: 16,
-    gap: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: 18,
+    gap: 14,
   },
   ageBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 999,
     minWidth: 50,
     alignItems: 'center',
+    backgroundColor: colors.accent,
   },
-  ageText: { fontSize: 12, fontWeight: 'bold', color: '#fff' },
-  bookInfo: { flex: 1 },
-  bookTitle: { fontSize: 16, fontWeight: 'bold', color: '#fff' },
-  bookDescription: { fontSize: 13, color: '#cbd5e1', marginTop: 2 },
-  bookStats: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  bookStatsText: { fontSize: 12, color: '#94a3b8' },
+  ageText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.accentText,
+  },
+  bookInfo: {
+    flex: 1,
+  },
+  bookTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  bookDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  bookStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  bookStatsText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   recommendedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 6,
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    marginTop: 8,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    alignSelf: 'flex-start',
   },
-  recommendedText: { fontSize: 12, color: '#fff', fontWeight: '600' },
-  actionButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  readButton: { backgroundColor: '#fb923c' },
-  actionButtonText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  recommendedText: {
+    fontSize: 11,
+    color: colors.text,
+    fontWeight: '700',
+  },
+  readButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: colors.accent,
+  },
+  readButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.accentText,
+  },
 });

@@ -5,7 +5,7 @@ export { default as VideosScreen } from './VideosScreen';
 export { default as ProfileScreen } from './ProfileScreen';
 export { default as BhagavadGitaScreen } from './BhagavadGitaScreen';
 export { default as AIBuddyScreen } from './AIBuddyScreen';
-export { default as QuizzesScreen } from './QuizzesScreen';
+export { default as StorybooksScreen } from './StorybooksScreen';
 export { default as ChapterDetailScreen } from './ChapterDetailScreen';
 export { default as CourseDetailScreen } from './CourseDetailScreen';
 export { default as MeditationScreen } from './MeditationScreen';

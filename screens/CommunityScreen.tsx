@@ -10,11 +10,11 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../services/supabaseClient';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 interface Comment {
   id: string;
@@ -112,6 +112,8 @@ const initialComments: { [key: string]: Comment[] } = {
 export default function CommunityScreen() {
   const { user } = useUser();
   const { t } = useLocalization();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<{ [key: string]: Comment[] }>(initialComments);
@@ -476,27 +478,29 @@ export default function CommunityScreen() {
   };
 
   return (
-    <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('community.title', 'Community Forums')}</Text>
         <TouchableOpacity
           style={styles.newPostButton}
           onPress={() => setNewPostModalVisible(true)}
+          activeOpacity={0.85}
         >
-          <Ionicons name="add" size={24} color="#fff" />
+          <Ionicons name="add" size={22} color={colors.accentText} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {posts.map((post) => (
           <TouchableOpacity
             key={post.id}
             style={styles.postCard}
             onPress={() => setSelectedPost(post)}
+            activeOpacity={0.85}
           >
             <View style={styles.postHeader}>
               <View style={styles.avatar}>
-                <Ionicons name="person" size={20} color="#fff" />
+                <Ionicons name="person" size={20} color={colors.accentText} />
               </View>
               <View style={styles.postInfo}>
                 <Text style={styles.authorName}>{post.author}</Text>
@@ -514,19 +518,19 @@ export default function CommunityScreen() {
               >
                 <Ionicons
                   name={post.liked ? 'thumbs-up' : 'thumbs-up-outline'}
-                  size={18}
-                  color={post.liked ? '#fb923c' : '#94a3b8'}
+                  size={16}
+                  color={post.liked ? colors.text : colors.textSecondary}
                 />
                 <Text style={[styles.actionText, post.liked && styles.actionTextActive]}>
                   {post.likes}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="chatbubble-outline" size={18} color="#94a3b8" />
+                <Ionicons name="chatbubble-outline" size={16} color={colors.textSecondary} />
                 <Text style={styles.actionText}>{post.comments}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionButton}>
-                <Ionicons name="share-outline" size={18} color="#94a3b8" />
+                <Ionicons name="share-outline" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -540,17 +544,17 @@ export default function CommunityScreen() {
         animationType="slide"
         onRequestClose={() => setSelectedPost(null)}
       >
-        <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.modalContainer}>
+        <View style={styles.modalContainer}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardView}
           >
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setSelectedPost(null)}>
-                <Ionicons name="arrow-back" size={24} color="#fff" />
+                <Ionicons name="arrow-back" size={22} color={colors.text} />
               </TouchableOpacity>
               <Text style={styles.modalHeaderTitle}>Discussion</Text>
-              <View style={{ width: 24 }} />
+              <View style={{ width: 22 }} />
             </View>
 
             <ScrollView style={styles.modalContent}>
@@ -559,7 +563,7 @@ export default function CommunityScreen() {
                   <View style={styles.postDetail}>
                     <View style={styles.postHeader}>
                       <View style={styles.avatar}>
-                        <Ionicons name="person" size={20} color="#fff" />
+                        <Ionicons name="person" size={20} color={colors.accentText} />
                       </View>
                       <View style={styles.postInfo}>
                         <Text style={styles.authorName}>{selectedPost.author}</Text>
@@ -578,7 +582,7 @@ export default function CommunityScreen() {
                       <View key={comment.id} style={styles.commentCard}>
                         <View style={styles.commentHeader}>
                           <View style={styles.avatarSmall}>
-                            <Ionicons name="person" size={16} color="#fff" />
+                            <Ionicons name="person" size={16} color={colors.accentText} />
                           </View>
                           <View>
                             <Text style={styles.commentAuthor}>{comment.author}</Text>
@@ -594,7 +598,7 @@ export default function CommunityScreen() {
                             <Ionicons
                               name={comment.liked ? 'thumbs-up' : 'thumbs-up-outline'}
                               size={16}
-                              color={comment.liked ? '#fb923c' : '#94a3b8'}
+                              color={comment.liked ? colors.text : colors.textSecondary}
                             />
                             <Text style={[styles.commentActionText, comment.liked && styles.actionTextActive]}>
                               {comment.likes}
@@ -604,7 +608,7 @@ export default function CommunityScreen() {
                             style={styles.commentActionButton}
                             onPress={() => setReplyingTo(comment.id)}
                           >
-                            <Ionicons name="arrow-undo-outline" size={16} color="#94a3b8" />
+                            <Ionicons name="arrow-undo-outline" size={16} color={colors.textSecondary} />
                             <Text style={styles.commentActionText}>Reply</Text>
                           </TouchableOpacity>
                         </View>
@@ -613,7 +617,7 @@ export default function CommunityScreen() {
                           <View key={reply.id} style={styles.replyCard}>
                             <View style={styles.commentHeader}>
                               <View style={styles.avatarSmall}>
-                                <Ionicons name="person" size={14} color="#fff" />
+                                <Ionicons name="person" size={14} color={colors.accentText} />
                               </View>
                               <View>
                                 <Text style={styles.replyAuthor}>{reply.author}</Text>
@@ -629,7 +633,7 @@ export default function CommunityScreen() {
                             <TextInput
                               style={styles.replyInput}
                               placeholder="Write a reply..."
-                              placeholderTextColor="#94a3b8"
+                              placeholderTextColor={colors.textSecondary}
                               value={replyText}
                               onChangeText={setReplyText}
                               multiline
@@ -664,20 +668,21 @@ export default function CommunityScreen() {
                 <TextInput
                   style={styles.commentInput}
                   placeholder="Add a comment..."
-                  placeholderTextColor="#94a3b8"
+                  placeholderTextColor={colors.textSecondary}
                   value={commentText}
                   onChangeText={setCommentText}
                 />
                 <TouchableOpacity
                   style={styles.sendButton}
                   onPress={() => addComment(selectedPost.id)}
+                  activeOpacity={0.85}
                 >
-                  <Ionicons name="send" size={20} color="#fff" />
+                  <Ionicons name="send" size={18} color={colors.accentText} />
                 </TouchableOpacity>
               </View>
             )}
           </KeyboardAvoidingView>
-        </LinearGradient>
+        </View>
       </Modal>
 
       {/* New Post Modal */}
@@ -686,14 +691,14 @@ export default function CommunityScreen() {
         animationType="slide"
         onRequestClose={() => setNewPostModalVisible(false)}
       >
-        <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.modalContainer}>
+        <View style={styles.modalContainer}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardView}
           >
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setNewPostModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={24} color={colors.text} />
               </TouchableOpacity>
               <Text style={styles.modalHeaderTitle}>New Post</Text>
               <TouchableOpacity onPress={addPost}>
@@ -705,29 +710,30 @@ export default function CommunityScreen() {
               <TextInput
                 style={styles.titleInput}
                 placeholder="Title"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textSecondary}
                 value={newPostTitle}
                 onChangeText={setNewPostTitle}
               />
               <TextInput
                 style={styles.contentInput}
                 placeholder="What's on your mind?"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={colors.textSecondary}
                 value={newPostContent}
                 onChangeText={setNewPostContent}
                 multiline
               />
             </ScrollView>
           </KeyboardAvoidingView>
-        </LinearGradient>
+        </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -735,31 +741,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e40af',
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
   },
   newPostButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollView: {
     flex: 1,
+    paddingHorizontal: 20,
   },
   postCard: {
-    backgroundColor: '#1e40af',
-    marginHorizontal: 15,
-    marginTop: 15,
-    padding: 15,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: 18,
   },
   postHeader: {
     flexDirection: 'row',
@@ -771,7 +778,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -780,23 +787,23 @@ const styles = StyleSheet.create({
   },
   authorName: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.text,
   },
   timestamp: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   postTitle: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
   },
   postContent: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   postFooter: {
@@ -805,7 +812,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#334155',
+    borderTopColor: colors.border,
   },
   actionButton: {
     flexDirection: 'row',
@@ -814,13 +821,15 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   actionTextActive: {
-    color: '#fb923c',
+    color: colors.text,
   },
   modalContainer: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -832,17 +841,17 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 60,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e40af',
+    borderBottomColor: colors.border,
   },
   modalHeaderTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.text,
   },
   postButton: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fb923c',
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
   },
   modalContent: {
     flex: 1,
@@ -850,32 +859,32 @@ const styles = StyleSheet.create({
   postDetail: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e40af',
+    borderBottomColor: colors.border,
   },
   postTitleLarge: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 19,
+    fontWeight: '800',
+    color: colors.text,
     marginBottom: 12,
   },
   postContentFull: {
     fontSize: 15,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     lineHeight: 22,
   },
   commentsSection: {
     padding: 20,
   },
   commentsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
     marginBottom: 15,
   },
   commentCard: {
-    backgroundColor: '#1e40af',
+    backgroundColor: colors.surfaceAlt,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 14,
     marginBottom: 12,
   },
   commentHeader: {
@@ -888,22 +897,22 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   commentAuthor: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.text,
   },
   commentTimestamp: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: colors.textSecondary,
   },
   commentText: {
     fontSize: 14,
-    color: '#e2e8f0',
+    color: colors.text,
     lineHeight: 20,
   },
   commentActions: {
@@ -918,23 +927,26 @@ const styles = StyleSheet.create({
   },
   commentActionText: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   replyCard: {
     marginLeft: 20,
     marginTop: 10,
     padding: 10,
-    backgroundColor: '#172554',
-    borderRadius: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
   },
   replyAuthor: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.text,
   },
   replyText: {
     fontSize: 13,
-    color: '#e2e8f0',
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   replyInputContainer: {
@@ -942,11 +954,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   replyInput: {
-    backgroundColor: '#172554',
-    borderRadius: 6,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 10,
     padding: 10,
     fontSize: 14,
-    color: '#fff',
+    color: colors.text,
     minHeight: 60,
   },
   replyButtons: {
@@ -957,43 +969,44 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: colors.textSecondary,
+    fontWeight: '600',
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   sendReplyButton: {
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    borderRadius: 6,
+    borderRadius: 999,
   },
   sendReplyButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.accentText,
   },
   commentInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 15,
     borderTopWidth: 1,
-    borderTopColor: '#1e40af',
+    borderTopColor: colors.border,
     gap: 10,
   },
   commentInput: {
     flex: 1,
-    backgroundColor: '#1e40af',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#fff',
+    color: colors.text,
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1002,20 +1015,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   titleInput: {
-    backgroundColor: '#1e40af',
-    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
     padding: 15,
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: colors.text,
     marginBottom: 15,
   },
   contentInput: {
-    backgroundColor: '#1e40af',
-    borderRadius: 8,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
     padding: 15,
     fontSize: 15,
-    color: '#fff',
+    color: colors.text,
     minHeight: 200,
     textAlignVertical: 'top',
   },

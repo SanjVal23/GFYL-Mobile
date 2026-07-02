@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,11 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 interface ProfileScreenProps {
   onLogout: () => void;
@@ -24,20 +24,28 @@ interface ProfileScreenProps {
 
 export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
   const { user, updateUser, savedItems, removeSavedItem } = useUser();
-  const { isDarkMode, toggleTheme, colors } = useTheme();
   const { language, setLanguage, t } = useLocalization();
+  const { isDarkMode, toggleTheme, colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [notifications, setNotifications] = useState(user.notifications ?? true);
-  
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+    }, [])
+  );
+
   // Modals
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showSavedItems, setShowSavedItems] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
-  
+
   // Edit profile fields
   const [editName, setEditName] = useState(user.name);
   const [editEmail, setEditEmail] = useState(user.email);
-  
+
   // Language selection
   const [selectedLanguage, setSelectedLanguage] = useState(user.language ?? language ?? 'English');
   const languages = ['English', 'Hindi', 'Sanskrit', 'Telugu', 'Tamil', 'Bengali'];
@@ -65,14 +73,6 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
     Alert.alert(
       'Notifications',
       value ? 'Notifications enabled' : 'Notifications disabled'
-    );
-  };
-
-  const handleDarkModeToggle = () => {
-    toggleTheme();
-    Alert.alert(
-      isDarkMode ? 'Light Mode' : 'Dark Mode',
-      isDarkMode ? 'Switched to light mode' : 'Switched to dark mode'
     );
   };
 
@@ -191,102 +191,101 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
   };
 
   return (
-    <LinearGradient colors={colors.background} style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+    <View style={styles.container}>
+      <ScrollView ref={scrollViewRef} style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
-            <Ionicons name="person" size={50} color="#fff" />
+          <View style={styles.avatar}>
+            <Ionicons name="person" size={44} color={colors.accentText} />
           </View>
-          <Text style={[styles.name, { color: colors.text }]}>{user.isGuest ? t('profile.guest', 'Guest User') : user.name}</Text>
-          <Text style={[styles.email, { color: colors.textSecondary }]}>{user.isGuest ? t('profile.guestAccount', 'Guest Account') : user.email}</Text>
+          <Text style={styles.name}>{user.isGuest ? t('profile.guest', 'Guest User') : user.name}</Text>
+          <Text style={styles.email}>{user.isGuest ? t('profile.guestAccount', 'Guest Account') : user.email}</Text>
           {user.isGuest && (
-            <TouchableOpacity
-              style={[styles.upgradeButton, { backgroundColor: colors.accent }]}
-              onPress={handleCreateAccount}
-            >
+            <TouchableOpacity style={styles.upgradeButton} onPress={handleCreateAccount} activeOpacity={0.85}>
               <Text style={styles.upgradeButtonText}>{t('profile.createAccount', 'Create Account')}</Text>
             </TouchableOpacity>
           )}
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('profile.account', 'Account')}</Text>
-          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.cardBackground }]} onPress={handleEditProfile}>
-            <Ionicons name="person-outline" size={24} color={colors.text} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.editProfile', 'Edit Profile')}</Text>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <Text style={styles.sectionTitle}>{t('profile.account', 'Account')}</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={handleEditProfile} activeOpacity={0.85}>
+            <Ionicons name="person-outline" size={22} color={colors.text} />
+            <Text style={styles.menuText}>{t('profile.editProfile', 'Edit Profile')}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
-          <View style={[styles.menuItem, { backgroundColor: colors.cardBackground }]}>
-            <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          <View style={styles.menuItem}>
+            <Ionicons name="notifications-outline" size={22} color={colors.text} />
             <View style={styles.menuTextContainer}>
-              <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.notifications', 'Notifications')}</Text>
+              <Text style={styles.menuText}>{t('profile.notifications', 'Notifications')}</Text>
             </View>
             <Switch
               value={notifications}
               onValueChange={handleNotificationToggle}
-              trackColor={{ false: '#334155', true: colors.accent }}
-              thumbColor="#fff"
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor={colors.accentText}
             />
           </View>
-          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.cardBackground }]} onPress={handleSavedItems}>
-            <Ionicons name="bookmark-outline" size={24} color={colors.text} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.savedItems', 'Saved Items')}</Text>
-            <View style={[styles.badge, { backgroundColor: colors.accent }]}>
+          <TouchableOpacity style={styles.menuItem} onPress={handleSavedItems} activeOpacity={0.85}>
+            <Ionicons name="bookmark-outline" size={22} color={colors.text} />
+            <Text style={styles.menuText}>{t('profile.savedItems', 'Saved Items')}</Text>
+            <View style={styles.badge}>
               <Text style={styles.badgeText}>{savedItems.length}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('profile.preferences', 'Preferences')}</Text>
-          <View style={[styles.menuItem, { backgroundColor: colors.cardBackground }]}>
-            <Ionicons name="moon-outline" size={24} color={colors.text} />
+          <Text style={styles.sectionTitle}>{t('profile.preferences', 'Preferences')}</Text>
+          <View style={styles.menuItem}>
+            <Ionicons name={isDarkMode ? 'moon-outline' : 'sunny-outline'} size={22} color={colors.text} />
             <View style={styles.menuTextContainer}>
-              <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.darkMode', 'Dark Mode')}</Text>
+              <Text style={styles.menuText}>
+                {isDarkMode ? t('profile.darkMode', 'Dark Mode') : t('profile.lightMode', 'Light Mode')}
+              </Text>
             </View>
             <Switch
               value={isDarkMode}
-              onValueChange={handleDarkModeToggle}
-              trackColor={{ false: '#334155', true: colors.accent }}
-              thumbColor="#fff"
+              onValueChange={toggleTheme}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor={colors.accentText}
             />
           </View>
-          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.cardBackground }]} onPress={() => setShowLanguage(true)}>
-            <Ionicons name="language-outline" size={24} color={colors.text} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.language', 'Language')}</Text>
-            <Text style={[styles.menuSubtext, { color: colors.textSecondary }]}>{selectedLanguage}</Text>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <TouchableOpacity style={styles.menuItem} onPress={() => setShowLanguage(true)} activeOpacity={0.85}>
+            <Ionicons name="language-outline" size={22} color={colors.text} />
+            <Text style={styles.menuText}>{t('profile.language', 'Language')}</Text>
+            <Text style={styles.menuSubtext}>{selectedLanguage}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('profile.about', 'About')}</Text>
-          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.cardBackground }]} onPress={() => setShowAbout(true)}>
-            <Ionicons name="information-circle-outline" size={24} color={colors.text} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.aboutApp', 'About App')}</Text>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <Text style={styles.sectionTitle}>{t('profile.about', 'About')}</Text>
+          <TouchableOpacity style={styles.menuItem} onPress={() => setShowAbout(true)} activeOpacity={0.85}>
+            <Ionicons name="information-circle-outline" size={22} color={colors.text} />
+            <Text style={styles.menuText}>{t('profile.aboutApp', 'About App')}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.cardBackground }]} onPress={handlePrivacyPolicy}>
-            <Ionicons name="document-text-outline" size={24} color={colors.text} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.privacy', 'Privacy Policy')}</Text>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <TouchableOpacity style={styles.menuItem} onPress={handlePrivacyPolicy} activeOpacity={0.85}>
+            <Ionicons name="document-text-outline" size={22} color={colors.text} />
+            <Text style={styles.menuText}>{t('profile.privacy', 'Privacy Policy')}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.menuItem, { backgroundColor: colors.cardBackground }]} onPress={handleTermsOfService}>
-            <Ionicons name="shield-checkmark-outline" size={24} color={colors.text} />
-            <Text style={[styles.menuText, { color: colors.text }]}>{t('profile.terms', 'Terms of Service')}</Text>
-            <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <TouchableOpacity style={styles.menuItem} onPress={handleTermsOfService} activeOpacity={0.85}>
+            <Ionicons name="shield-checkmark-outline" size={22} color={colors.text} />
+            <Text style={styles.menuText}>{t('profile.terms', 'Terms of Service')}</Text>
+            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <TouchableOpacity style={[styles.menuItem, styles.logoutItem, { borderColor: '#ef4444' }]} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#ef4444" />
-            <Text style={[styles.menuText, styles.logoutText]}>{t('profile.logout', 'Logout')}</Text>
+          <TouchableOpacity style={styles.logoutItem} onPress={handleLogout} activeOpacity={0.85}>
+            <Ionicons name="log-out-outline" size={22} color={colors.danger} />
+            <Text style={styles.logoutText}>{t('profile.logout', 'Logout')}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.versionText, { color: colors.textSecondary }]}>{t('profile.version', 'Version 1.0.0')}</Text>
+        <Text style={styles.versionText}>{t('profile.version', 'Version 1.0.0')}</Text>
         <View style={{ height: 40 }} />
       </ScrollView>
 
@@ -298,39 +297,39 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
         onRequestClose={() => setShowEditProfile(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.primary }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Edit Profile</Text>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
               <TouchableOpacity onPress={() => setShowEditProfile(false)}>
-                <Ionicons name="close" size={28} color={colors.text} />
+                <Ionicons name="close" size={26} color={colors.text} />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Name</Text>
+              <Text style={styles.inputLabel}>Name</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: colors.cardBackground, color: colors.text, borderColor: colors.border }]}
+                style={styles.input}
                 value={editName}
                 onChangeText={setEditName}
                 placeholder="Enter your name"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Email</Text>
+              <Text style={styles.inputLabel}>Email</Text>
               <TextInput
-                style={[styles.input, { backgroundColor: colors.cardBackground, color: colors.text, borderColor: colors.border }]}
+                style={styles.input}
                 value={editEmail}
                 onChangeText={setEditEmail}
                 placeholder="Enter your email"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
             </View>
 
-            <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.accent }]} onPress={handleSaveProfile}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile} activeOpacity={0.85}>
               <Text style={styles.saveButtonText}>Save Changes</Text>
             </TouchableOpacity>
           </View>
@@ -345,26 +344,26 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
         onRequestClose={() => setShowSavedItems(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.primary }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('profile.savedItems', 'Saved Items')}</Text>
+              <Text style={styles.modalTitle}>{t('profile.savedItems', 'Saved Items')}</Text>
               <TouchableOpacity onPress={() => setShowSavedItems(false)}>
-                <Ionicons name="close" size={28} color={colors.text} />
+                <Ionicons name="close" size={26} color={colors.text} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.savedItemsList}>
               {savedItems.map(item => (
-                <View key={item.id} style={[styles.savedItem, { backgroundColor: colors.cardBackground }]}>
-                  <View style={[styles.savedItemIcon, { backgroundColor: colors.primary }]}>
-                    <Ionicons name={item.icon as any} size={24} color={colors.accent} />
+                <View key={item.id} style={styles.savedItem}>
+                  <View style={styles.savedItemIcon}>
+                    <Ionicons name={item.icon as any} size={22} color={colors.text} />
                   </View>
                   <View style={styles.savedItemInfo}>
-                    <Text style={[styles.savedItemTitle, { color: colors.text }]}>{item.title}</Text>
-                    <Text style={[styles.savedItemType, { color: colors.textSecondary }]}>{item.type}</Text>
+                    <Text style={styles.savedItemTitle}>{item.title}</Text>
+                    <Text style={styles.savedItemType}>{item.type}</Text>
                   </View>
                   <TouchableOpacity onPress={() => handleRemoveSavedItem(item.id)}>
-                    <Ionicons name="trash-outline" size={22} color="#ef4444" />
+                    <Ionicons name="trash-outline" size={20} color={colors.danger} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -381,28 +380,28 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
         onRequestClose={() => setShowLanguage(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.primary }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>{t('profile.selectLanguage', 'Select Language')}</Text>
+              <Text style={styles.modalTitle}>{t('profile.selectLanguage', 'Select Language')}</Text>
               <TouchableOpacity onPress={() => setShowLanguage(false)}>
-                <Ionicons name="close" size={28} color={colors.text} />
+                <Ionicons name="close" size={26} color={colors.text} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.languageList}>
               {languages.map(language => (
                 <TouchableOpacity
                   key={language}
                   style={[
                     styles.languageItem,
-                    { backgroundColor: colors.cardBackground },
-                    selectedLanguage === language && [styles.languageItemActive, { borderColor: colors.accent }],
+                    selectedLanguage === language && styles.languageItemActive,
                   ]}
                   onPress={() => handleLanguageSelect(language)}
+                  activeOpacity={0.85}
                 >
-                  <Text style={[styles.languageText, { color: colors.text }]}>{language}</Text>
+                  <Text style={styles.languageText}>{language}</Text>
                   {selectedLanguage === language && (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.accent} />
+                    <Ionicons name="checkmark-circle" size={22} color={colors.accent} />
                   )}
                 </TouchableOpacity>
               ))}
@@ -419,190 +418,203 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
         onRequestClose={() => setShowAbout(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.primary }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>About App</Text>
+              <Text style={styles.modalTitle}>About App</Text>
               <TouchableOpacity onPress={() => setShowAbout(false)}>
-                <Ionicons name="close" size={28} color={colors.text} />
+                <Ionicons name="close" size={26} color={colors.text} />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.aboutContent}>
               <View style={styles.aboutLogo}>
-                <View style={[styles.aboutLogoCircle, { backgroundColor: colors.cardBackground, borderColor: colors.accent }]}>
-                  <Ionicons name="leaf" size={50} color={colors.accent} />
+                <View style={styles.aboutLogoCircle}>
+                  <Ionicons name="leaf" size={44} color={colors.accentText} />
                 </View>
               </View>
-              
-              <Text style={[styles.aboutTitle, { color: colors.text }]}>Gita For Youth Leadership</Text>
-              <Text style={[styles.aboutSubtitle, { color: colors.textSecondary }]}>Gita For Your Life</Text>
-              
+
+              <Text style={styles.aboutTitle}>Gita For Youth Leadership</Text>
+              <Text style={styles.aboutSubtitle}>Gita For Your Life</Text>
+
               <View style={styles.aboutSection}>
-                <Text style={[styles.aboutHeading, { color: colors.accent }]}>Our Mission</Text>
-                <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
-                  To empower youth with timeless wisdom from the Bhagavad Gita, 
+                <Text style={styles.aboutHeading}>Our Mission</Text>
+                <Text style={styles.aboutText}>
+                  To empower youth with timeless wisdom from the Bhagavad Gita,
                   fostering leadership, spiritual growth, and ethical living.
                 </Text>
               </View>
 
               <View style={styles.aboutSection}>
-                <Text style={[styles.aboutHeading, { color: colors.accent }]}>Features</Text>
+                <Text style={styles.aboutHeading}>Features</Text>
                 <View style={styles.featureItem}>
-                  <Ionicons name="book" size={20} color={colors.accent} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>Complete Bhagavad Gita</Text>
+                  <Ionicons name="book" size={18} color={colors.text} />
+                  <Text style={styles.featureText}>Complete Bhagavad Gita</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <Ionicons name="chatbubbles" size={20} color={colors.accent} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>AI Spiritual Guide</Text>
+                  <Ionicons name="chatbubbles" size={18} color={colors.text} />
+                  <Text style={styles.featureText}>AI Spiritual Guide</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <Ionicons name="school" size={20} color={colors.accent} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>Leadership Courses</Text>
+                  <Ionicons name="school" size={18} color={colors.text} />
+                  <Text style={styles.featureText}>Leadership Courses</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <Ionicons name="flower" size={20} color={colors.accent} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>Meditation & Pranayama</Text>
+                  <Ionicons name="flower" size={18} color={colors.text} />
+                  <Text style={styles.featureText}>Meditation & Pranayama</Text>
                 </View>
                 <View style={styles.featureItem}>
-                  <Ionicons name="people" size={20} color={colors.accent} />
-                  <Text style={[styles.featureText, { color: colors.text }]}>Community Forums</Text>
+                  <Ionicons name="people" size={18} color={colors.text} />
+                  <Text style={styles.featureText}>Community Forums</Text>
                 </View>
               </View>
 
               <View style={styles.aboutSection}>
-                <Text style={[styles.aboutHeading, { color: colors.accent }]}>Contact</Text>
-                <Text style={[styles.aboutText, { color: colors.textSecondary }]}>
+                <Text style={styles.aboutHeading}>Contact</Text>
+                <Text style={styles.aboutText}>
                   Email: support@gfyl.org{'\n'}
                   Website: www.gfyl.org
                 </Text>
               </View>
 
-              <Text style={[styles.aboutVersion, { color: colors.textSecondary }]}>Version 1.0.0</Text>
-              <Text style={[styles.aboutCopyright, { color: colors.textSecondary }]}>
+              <Text style={styles.aboutVersion}>Version 1.0.0</Text>
+              <Text style={styles.aboutCopyright}>
                 © 2026 GFYL. All rights reserved.
               </Text>
             </ScrollView>
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
   header: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 70,
     paddingBottom: 30,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#fb923c',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
   },
   email: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   upgradeButton: {
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginTop: 15,
+    paddingVertical: 12,
+    borderRadius: 999,
+    marginTop: 16,
   },
   upgradeButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.accentText,
   },
   section: {
-    marginTop: 20,
+    marginTop: 8,
     paddingHorizontal: 20,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
     marginBottom: 12,
     marginLeft: 4,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e40af',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 10,
-    gap: 15,
+    gap: 14,
   },
   menuTextContainer: {
     flex: 1,
   },
   menuText: {
     flex: 1,
-    fontSize: 16,
-    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
   },
   menuSubtext: {
     fontSize: 14,
-    color: '#94a3b8',
-    marginRight: 8,
+    color: colors.textSecondary,
+    marginRight: 4,
   },
   badge: {
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 999,
     minWidth: 24,
     alignItems: 'center',
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.accentText,
   },
   logoutItem: {
-    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: colors.danger,
   },
   logoutText: {
-    color: '#ef4444',
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.danger,
   },
   versionText: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textTertiary,
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 24,
   },
-  
+
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#1e3a8a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
     maxHeight: '80%',
   },
@@ -613,43 +625,41 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
   },
-  
+
   // Edit Profile
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#cbd5e1',
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#1e40af',
-    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: 14,
     padding: 15,
     fontSize: 16,
-    color: '#fff',
-    borderWidth: 1,
-    borderColor: '#2563eb',
+    color: colors.text,
   },
   saveButton: {
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 6,
   },
   saveButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.accentText,
   },
-  
+
   // Saved Items
   savedItemsList: {
     maxHeight: 500,
@@ -657,17 +667,19 @@ const styles = StyleSheet.create({
   savedItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e40af',
-    padding: 15,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    borderRadius: 14,
     marginBottom: 10,
     gap: 12,
   },
   savedItemIcon: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#172554',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -676,16 +688,16 @@ const styles = StyleSheet.create({
   },
   savedItemTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.text,
     marginBottom: 4,
   },
   savedItemType: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: colors.textSecondary,
     textTransform: 'capitalize',
   },
-  
+
   // Language
   languageList: {
     maxHeight: 400,
@@ -694,22 +706,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#1e40af',
-    padding: 18,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    borderRadius: 14,
     marginBottom: 10,
   },
   languageItemActive: {
-    backgroundColor: '#2563eb',
-    borderWidth: 2,
-    borderColor: '#fb923c',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.accent,
   },
   languageText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '500',
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: '600',
   },
-  
+
   // About
   aboutContent: {
     maxHeight: 500,
@@ -719,41 +732,39 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   aboutLogoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#1e40af',
-    borderWidth: 3,
-    borderColor: '#fb923c',
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   aboutTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 4,
   },
   aboutSubtitle: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   aboutSection: {
     marginBottom: 20,
   },
   aboutHeading: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fb923c',
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.text,
     marginBottom: 10,
   },
   aboutText: {
-    fontSize: 15,
-    color: '#cbd5e1',
-    lineHeight: 22,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 21,
   },
   featureItem: {
     flexDirection: 'row',
@@ -762,18 +773,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   featureText: {
-    fontSize: 15,
-    color: '#e2e8f0',
+    fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
   },
   aboutVersion: {
-    fontSize: 14,
-    color: '#94a3b8',
+    fontSize: 13,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 10,
   },
   aboutCopyright: {
     fontSize: 12,
-    color: '#64748b',
+    color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 20,
