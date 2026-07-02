@@ -8,6 +8,7 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 type Storybook = {
@@ -49,6 +50,7 @@ const storybooksData: Storybook[] = [
 ];
 
 export default function StorybooksScreen() {
+  const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -61,6 +63,11 @@ export default function StorybooksScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {navigation.canGoBack() && (
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>Gita Storybooks</Text>
         <Text style={styles.headerSubtitle}>Stories for Kids · Free &amp; Paid</Text>
       </View>
@@ -113,6 +120,20 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 60,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   headerTitle: {
     fontSize: 26,

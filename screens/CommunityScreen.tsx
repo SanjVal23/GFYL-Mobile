@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../services/supabaseClient';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -110,6 +111,7 @@ const initialComments: { [key: string]: Comment[] } = {
 };
 
 export default function CommunityScreen() {
+  const navigation = useNavigation<any>();
   const { user } = useUser();
   const { t } = useLocalization();
   const { colors } = useTheme();
@@ -480,7 +482,14 @@ export default function CommunityScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('community.title', 'Community Forums')}</Text>
+        <View style={styles.headerLeft}>
+          {navigation.canGoBack() && (
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+              <Ionicons name="chevron-back" size={20} color={colors.text} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>{t('community.title', 'Community Forums')}</Text>
+        </View>
         <TouchableOpacity
           style={styles.newPostButton}
           onPress={() => setNewPostModalVisible(true)}
@@ -742,6 +751,21 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     padding: 20,
     paddingTop: 60,
     paddingBottom: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
     fontSize: 22,

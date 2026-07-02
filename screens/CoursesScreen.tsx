@@ -25,6 +25,11 @@ export default function CoursesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {navigation.canGoBack() && (
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>{t('courses.title', 'Marketing')}</Text>
         <Text style={styles.headerSubtitle}>
           {t('courses.subtitle', 'Gita for Youth Leadership · Outreach & Campaigns')}
@@ -180,6 +185,20 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   header: {
     padding: 24,
     paddingTop: 60,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 60,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   headerTitle: {
     fontSize: 26,

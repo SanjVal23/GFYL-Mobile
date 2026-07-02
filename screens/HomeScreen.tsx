@@ -49,7 +49,7 @@ export default function HomeScreen() {
     {
       key: 'gita',
       title: t('home.gita.title', 'Gita for Youth Leadership'),
-      subtitle: t('home.gita.subtitle', 'Timeless Wisdom'),
+      subtitle: t('home.gita.subtitle', 'Class Materials'),
       icon: 'book',
       category: 'learn',
       onPress: () => navigation.navigate('BhagavadGita'),

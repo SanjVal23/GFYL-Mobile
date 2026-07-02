@@ -15,6 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useUser } from '../contexts/UserContext';
@@ -77,7 +78,9 @@ const toPlayableVideoUrl = (url: string) => {
 };
 
 export default function VideosScreen() {
+  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const [containerHeight, setContainerHeight] = useState(screenHeight - TAB_BAR_BASE_HEIGHT);
   const FEED_HEIGHT = containerHeight;
 
@@ -149,7 +152,7 @@ export default function VideosScreen() {
     const saved = savedItems.some(savedItem => savedItem.id.endsWith(`video-${item.id}`) || savedItem.id === `video-${item.id}`);
     const likeCount = item.likes + (liked ? 1 : 0);
     const isActive = item.id === activeVideoId;
-    const shouldPlay = isActive && !manuallyPaused;
+    const shouldPlay = isActive && !manuallyPaused && isFocused;
     const playableUrl = toPlayableVideoUrl(item.url);
     const hasPlaybackError = !!videoErrors[item.id];
 
@@ -270,6 +273,11 @@ export default function VideosScreen() {
       <View style={[styles.topOverlay, { paddingTop: insets.top + 10 }]} pointerEvents="box-none">
         <View style={styles.topBarRow}>
           <View style={styles.brandRow}>
+            {navigation.canGoBack() && (
+              <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+                <Ionicons name="chevron-back" size={18} color="#fff" />
+              </TouchableOpacity>
+            )}
             <View style={styles.brandIcon}>
               <Ionicons name="play" size={14} color="#fff" />
             </View>
@@ -448,6 +456,14 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   muteButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButton: {
     width: 34,
     height: 34,
     borderRadius: 17,

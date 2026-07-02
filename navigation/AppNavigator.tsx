@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator, TransitionPresets } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, ThemeColors } from '../contexts/ThemeContext';
@@ -149,6 +149,7 @@ function TabNavigator({ onLogout }: { onLogout: () => void }) {
       tabBar={(props) => <ScrollableTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        animation: 'shift',
       }}
     >
       <Tab.Screen
@@ -209,6 +210,7 @@ export default function AppNavigator({ onLogout }: { onLogout: () => void }) {
   return (
     <Stack.Navigator
       screenOptions={{
+        ...TransitionPresets.SlideFromRightIOS,
         headerStyle: {
           backgroundColor: '#1e3a8a',
         },

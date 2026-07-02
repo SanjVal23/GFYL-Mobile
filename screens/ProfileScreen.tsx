@@ -13,7 +13,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUser } from '../contexts/UserContext';
 import { useLocalization } from '../contexts/LocalizationContext';
@@ -24,6 +24,7 @@ interface ProfileScreenProps {
 }
 
 export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
+  const navigation = useNavigation<any>();
   const { user, updateUser, savedItems, removeSavedItem } = useUser();
   const { language, setLanguage, t } = useLocalization();
   const { isDarkMode, toggleTheme, colors } = useTheme();
@@ -193,6 +194,11 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
 
   return (
     <View style={styles.container}>
+      {navigation.canGoBack() && (
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+          <Ionicons name="chevron-back" size={22} color={colors.text} />
+        </TouchableOpacity>
+      )}
       <ScrollView ref={scrollViewRef} style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.avatar}>
@@ -505,6 +511,20 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     paddingTop: 70,
     paddingBottom: 30,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 60,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   avatar: {
     width: 96,
