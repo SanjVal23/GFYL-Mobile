@@ -88,6 +88,7 @@ export function AuthScreen({ onLogin }: AuthScreenProps) {
       email: sessionUser.email,
       language: 'English',
       notifications: true,
+      avatar_url: sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || null,
     });
   };
 

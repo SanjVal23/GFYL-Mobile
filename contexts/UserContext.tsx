@@ -42,16 +42,34 @@ export const UserProvider = ({ children, initialUser }: { children: ReactNode; i
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('name,email,language,notifications')
+        .select('name,email,language,notifications,avatar_url')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
         console.error('Failed to load profile', profileError);
       }
 
       if (profile) {
-        setUser(prev => ({ ...prev, ...profile }));
+        const { avatar_url, ...rest } = profile;
+        setUser(prev => ({ ...prev, ...rest, avatarUrl: avatar_url ?? prev.avatarUrl }));
+      } else if (!profileError) {
+        // No row yet for this account (e.g. an older account created before
+        // profiles existed, or a session restored before signup finished
+        // writing it) — create it now so this doesn't keep failing on every
+        // app open, and so the row exists for saved items / community posts.
+        const { error: createError } = await supabase.from('profiles').upsert({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          language: user.language ?? 'English',
+          notifications: user.notifications ?? true,
+          avatar_url: user.avatarUrl ?? null,
+        });
+
+        if (createError) {
+          console.error('Failed to create profile', createError);
+        }
       }
 
       const { data: items, error: itemsError } = await supabase
@@ -86,6 +104,7 @@ export const UserProvider = ({ children, initialUser }: { children: ReactNode; i
           language: userData.language ?? user.language ?? 'English',
           notifications:
             userData.notifications ?? (user.notifications ?? true),
+          avatar_url: userData.avatarUrl ?? user.avatarUrl,
         });
     }
   };
