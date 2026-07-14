@@ -18,6 +18,10 @@ import {
   ChapterDetailScreen,
   CourseDetailScreen,
   MeditationScreen,
+  GitaCoachScreen,
+  GitaCoachPracticeScreen,
+  GitaCoachProgressScreen,
+  GitaCoachTeacherScreen,
 } from '../screens';
 
 export type RootStackParamList = {
@@ -35,6 +39,10 @@ export type RootStackParamList = {
     courseTitle: string;
     courseDescription: string;
   };
+  GitaCoach: undefined;
+  GitaCoachPractice: { shlokaId?: string } | undefined;
+  GitaCoachProgress: undefined;
+  GitaCoachTeacher: undefined;
 };
 
 const Tab = createBottomTabNavigator();
@@ -250,6 +258,26 @@ export default function AppNavigator({ onLogout }: { onLogout: () => void }) {
         name="CourseDetail"
         component={CourseDetailScreen}
         options={{ title: 'Course' }}
+      />
+      <Stack.Screen
+        name="GitaCoach"
+        component={GitaCoachScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="GitaCoachPractice"
+        component={GitaCoachPracticeScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="GitaCoachProgress"
+        component={GitaCoachProgressScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="GitaCoachTeacher"
+        component={GitaCoachTeacherScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

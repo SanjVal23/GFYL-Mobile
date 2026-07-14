@@ -42,7 +42,7 @@ export const UserProvider = ({ children, initialUser }: { children: ReactNode; i
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('name,email,language,notifications,avatar_url')
+        .select('name,email,language,notifications,avatar_url,role')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -105,6 +105,7 @@ export const UserProvider = ({ children, initialUser }: { children: ReactNode; i
           notifications:
             userData.notifications ?? (user.notifications ?? true),
           avatar_url: userData.avatarUrl ?? user.avatarUrl,
+          role: userData.role ?? user.role ?? 'student',
         });
     }
   };

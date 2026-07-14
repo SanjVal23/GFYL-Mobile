@@ -12,10 +12,15 @@ create table if not exists profiles (
   language text default 'English',
   notifications boolean default true,
   avatar_url text,
+  role text default 'student',
   created_at timestamptz not null default now()
 );
 
 alter table profiles add column if not exists avatar_url text;
+alter table profiles add column if not exists role text default 'student';
+
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles add constraint profiles_role_check check (role in ('student', 'parent', 'teacher'));
 
 alter table profiles enable row level security;
 
@@ -29,11 +34,12 @@ drop policy if exists "update own profile" on profiles;
 create policy "update own profile" on profiles for update using (auth.uid() = id);
 
 -- Read-only view exposing only the non-sensitive columns (name, avatar) so the
--- community forum can show any author's profile picture without granting
--- select access to the full profiles row (email, notifications, etc. stay
--- private — "select own profile" above still restricts the base table to the
--- owner). Views run with the definer's privileges by default, so this
--- deliberately bypasses profiles' row-level security for just these columns.
+-- community forum and Gita Warriors teacher dashboard can show any author's
+-- profile picture without granting select access to the full profiles row
+-- (email, notifications, etc. stay private — "select own profile" above still
+-- restricts the base table to the owner). Views run with the definer's
+-- privileges by default, so this deliberately bypasses profiles' row-level
+-- security for just these columns.
 drop view if exists public_profiles;
 create view public_profiles as
   select id, name, avatar_url from profiles;
@@ -266,3 +272,30 @@ drop trigger if exists trg_community_post_comments_count on community_comments;
 create trigger trg_community_post_comments_count
 after insert or delete on community_comments
 for each row execute function community_post_comments_count_fn();
+
+-- ─────────────────────────────────────────────
+-- gita_attempts (Gita Warriors — shloka pronunciation coach)
+-- ─────────────────────────────────────────────
+create table if not exists gita_attempts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  shloka_id text not null,
+  score integer not null,
+  score_label text not null,
+  feedback jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table gita_attempts enable row level security;
+
+drop policy if exists "insert own gita attempts" on gita_attempts;
+create policy "insert own gita attempts" on gita_attempts for insert with check (auth.uid() = user_id);
+
+-- Students see only their own attempts; teachers see everyone's, since the
+-- teacher dashboard (getTeacherDashboard in services/gitaCoachService.ts)
+-- reads across all students with no per-user filter.
+drop policy if exists "select own or teacher gita attempts" on gita_attempts;
+create policy "select own or teacher gita attempts" on gita_attempts for select using (
+  auth.uid() = user_id
+  or exists (select 1 from profiles where id = auth.uid() and role = 'teacher')
+);

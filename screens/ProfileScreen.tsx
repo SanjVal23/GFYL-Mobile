@@ -78,6 +78,10 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
     );
   };
 
+  const handleTeacherToggle = (value: boolean) => {
+    updateUser({ role: value ? 'teacher' : 'student' });
+  };
+
   const handleSavedItems = () => {
     setShowSavedItems(true);
   };
@@ -232,6 +236,19 @@ export default function ProfileScreen({ onLogout }: ProfileScreenProps) {
             <Switch
               value={notifications}
               onValueChange={handleNotificationToggle}
+              trackColor={{ false: colors.border, true: colors.accent }}
+              thumbColor={colors.accentText}
+            />
+          </View>
+          <View style={styles.menuItem}>
+            <Ionicons name="school-outline" size={22} color={colors.text} />
+            <View style={styles.menuTextContainer}>
+              <Text style={styles.menuText}>Gita Warriors Teacher View</Text>
+              <Text style={styles.menuSubtext}>Unlocks the class dashboard on Home</Text>
+            </View>
+            <Switch
+              value={user.role === 'teacher'}
+              onValueChange={handleTeacherToggle}
               trackColor={{ false: colors.border, true: colors.accent }}
               thumbColor={colors.accentText}
             />

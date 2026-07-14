@@ -11,3 +11,7 @@ export { default as CourseDetailScreen } from './CourseDetailScreen';
 export { default as MeditationScreen } from './MeditationScreen';
 export { AuthScreen } from './AuthScreen';
 export { default as GuruScreen } from './Guru';
+export { default as GitaCoachScreen } from './GitaCoachScreen';
+export { default as GitaCoachPracticeScreen } from './GitaCoachPracticeScreen';
+export { default as GitaCoachProgressScreen } from './GitaCoachProgressScreen';
+export { default as GitaCoachTeacherScreen } from './GitaCoachTeacherScreen';

@@ -79,6 +79,14 @@ export default function HomeScreen() {
       onPress: () => navigation.navigate('Meditation'),
     },
     {
+      key: 'gita-coach',
+      title: t('home.gitaCoach.title', 'Gita Warriors'),
+      subtitle: t('home.gitaCoach.subtitle', 'Shloka Pronunciation Coach'),
+      icon: 'mic',
+      category: 'learn',
+      onPress: () => navigation.navigate('GitaCoach'),
+    },
+    {
       key: 'parent-lock',
       title: t('home.parentPortal.title', 'Parent Portal'),
       subtitle: accessTier !== 'paid'
@@ -133,7 +141,34 @@ export default function HomeScreen() {
     },
   ];
 
-  const dashboardCards = role === 'parent' ? parentCards : studentCards;
+  const teacherCards: DashboardCard[] = [
+    {
+      key: 'gita-coach-teacher',
+      title: t('home.gitaCoachTeacher.title', 'Class Dashboard'),
+      subtitle: t('home.gitaCoachTeacher.subtitle', 'Shloka scores for every student'),
+      icon: 'bar-chart',
+      category: 'connect',
+      onPress: () => navigation.navigate('GitaCoachTeacher'),
+    },
+    {
+      key: 'gita-coach',
+      title: t('home.gitaCoach.title', 'Gita Warriors'),
+      subtitle: t('home.gitaCoach.subtitle', 'Shloka Pronunciation Coach'),
+      icon: 'mic',
+      category: 'learn',
+      onPress: () => navigation.navigate('GitaCoach'),
+    },
+    {
+      key: 'community',
+      title: t('home.community.title', 'Community'),
+      subtitle: t('home.community.subtitle', 'Parent discussions and support'),
+      icon: 'chatbox-ellipses',
+      category: 'connect',
+      onPress: () => navigation.navigate('Main', { screen: 'Community' }),
+    },
+  ];
+
+  const dashboardCards = role === 'parent' ? parentCards : role === 'teacher' ? teacherCards : studentCards;
   const categories: Array<'All' | CardCategory> = [
     'All',
     ...Array.from(new Set(dashboardCards.map((card) => card.category))),
@@ -165,6 +200,8 @@ export default function HomeScreen() {
             <Text style={styles.greetingSubtitle}>
               {role === 'parent'
                 ? t('home.parentSubtitle', 'Guide your family’s journey')
+                : role === 'teacher'
+                ? t('home.teacherSubtitle', 'See how your class is progressing')
                 : t('home.studentSubtitle', 'Continue your daily practice')}
             </Text>
           </View>
@@ -184,7 +221,11 @@ export default function HomeScreen() {
         <View style={styles.statusRow}>
           <View style={styles.statusPill}>
             <Text style={styles.statusPillText}>
-              {role === 'parent' ? t('home.portal.parent', 'Parent Portal') : t('home.portal.student', 'Student Portal')}
+              {role === 'parent'
+                ? t('home.portal.parent', 'Parent Portal')
+                : role === 'teacher'
+                ? t('home.portal.teacher', 'Teacher Portal')
+                : t('home.portal.student', 'Student Portal')}
             </Text>
           </View>
           <View style={styles.statusPill}>
@@ -210,7 +251,11 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>
-            {role === 'parent' ? t('home.parent.tools', 'Portal Tools') : t('home.student.tools', 'Your Practices')}
+            {role === 'parent'
+              ? t('home.parent.tools', 'Portal Tools')
+              : role === 'teacher'
+              ? t('home.teacher.tools', 'Teacher Tools')
+              : t('home.student.tools', 'Your Practices')}
           </Text>
           <TouchableOpacity onPress={resetFilters}>
             <Text style={styles.sectionViewAll}>{t('home.viewAll', 'View all')}</Text>
