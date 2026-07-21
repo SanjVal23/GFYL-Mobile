@@ -1,50 +1,85 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+export interface ThemeColors {
+  background: string;
+  surface: string;
+  surfaceAlt: string;
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  border: string;
+  accent: string;
+  accentText: string;
+  danger: string;
+  success: string;
+  cardGradient: [string, string];
+  cardSubtitle: string;
+}
 
 interface ThemeContextType {
   isDarkMode: boolean;
   toggleTheme: () => void;
-  colors: {
-    primary: string;
-    secondary: string;
-    background: [string, string];
-    cardBackground: string;
-    text: string;
-    textSecondary: string;
-    accent: string;
-    border: string;
-  };
+  colors: ThemeColors;
 }
+
+const lightColors: ThemeColors = {
+  background: '#ffffff',
+  surface: '#ffffff',
+  surfaceAlt: '#f2f2f2',
+  text: '#111111',
+  textSecondary: '#8a8a8a',
+  textTertiary: '#b0b0b0',
+  border: '#e5e5e5',
+  accent: '#000000',
+  accentText: '#ffffff',
+  danger: '#ef4444',
+  success: '#16a34a',
+  cardGradient: ['#1c1c1c', '#000000'],
+  cardSubtitle: '#d4d4d4',
+};
+
+const darkColors: ThemeColors = {
+  background: '#000000',
+  surface: '#121212',
+  surfaceAlt: '#1e1e1e',
+  text: '#ffffff',
+  textSecondary: '#9a9a9a',
+  textTertiary: '#6b6b6b',
+  border: '#2a2a2a',
+  accent: '#ffffff',
+  accentText: '#000000',
+  danger: '#f87171',
+  success: '#4ade80',
+  cardGradient: ['#f2f2f2', '#e0e0e0'],
+  cardSubtitle: '#4b4b4b',
+};
+
+const THEME_STORAGE_KEY = 'gfyl_theme_preference';
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_STORAGE_KEY)
+      .then((stored) => {
+        if (stored === 'dark') setIsDarkMode(true);
+        if (stored === 'light') setIsDarkMode(false);
+      })
+      .catch(() => {});
+  }, []);
 
   const toggleTheme = () => {
-    setIsDarkMode(prev => !prev);
+    setIsDarkMode((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem(THEME_STORAGE_KEY, next ? 'dark' : 'light').catch(() => {});
+      return next;
+    });
   };
 
-  const colors = isDarkMode
-    ? {
-        primary: '#1e3a8a',
-        secondary: '#1e40af',
-        background: ['#172554', '#1e3a8a'] as [string, string],
-        cardBackground: '#1e40af',
-        text: '#fff',
-        textSecondary: '#cbd5e1',
-        accent: '#fb923c',
-        border: '#1e40af',
-      }
-    : {
-        primary: '#f0f9ff',
-        secondary: '#e0f2fe',
-        background: ['#ffffff', '#f0f9ff'] as [string, string],
-        cardBackground: '#e0f2fe',
-        text: '#0c4a6e',
-        textSecondary: '#64748b',
-        accent: '#fb923c',
-        border: '#bae6fd',
-      };
+  const colors = isDarkMode ? darkColors : lightColors;
 
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme, colors }}>

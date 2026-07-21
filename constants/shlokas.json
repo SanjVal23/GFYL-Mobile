@@ -1,0 +1,158 @@
+[
+  {
+    "id": "bg-2-47",
+    "reference": "Bhagavad Gita 2.47",
+    "title": "Karmaṇye Vādhikāraste",
+    "devanagari": "कर्मण्येवाधिकारस्ते मा फलेषु कदाचन।\nमा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि॥",
+    "roman": "karmaṇy-evādhikāras te mā phaleṣu kadācana\nmā karma-phala-hetur bhūr mā te saṅgo 'stv akarmaṇi",
+    "meaning": "You have a right to perform your prescribed duties, but you are never entitled to the fruits of your actions. Never consider yourself to be the cause of the results of your activities, nor be attached to inaction.",
+    "audioUrl": null,
+    "tip": "Curl your tongue back to the roof of your mouth for the retroflex 'ṇ' in karmaṇye — it's a harder sound than the soft dental 'n'.",
+    "syllables": [
+      [
+        { "text": "kar", "stress": "high" },
+        { "text": "ma", "stress": "low" },
+        { "text": "ṇye", "stress": "high" },
+        { "text": "vā", "stress": "high" },
+        { "text": "dhi", "stress": "low" },
+        { "text": "kā", "stress": "high" },
+        { "text": "ras", "stress": "high" },
+        { "text": "te", "stress": "high" }
+      ],
+      [
+        { "text": "mā", "stress": "high" },
+        { "text": "pha", "stress": "low" },
+        { "text": "le", "stress": "high" },
+        { "text": "ṣu", "stress": "low" },
+        { "text": "ka", "stress": "low" },
+        { "text": "dā", "stress": "high" },
+        { "text": "ca", "stress": "low" },
+        { "text": "na", "stress": "high" }
+      ],
+      [
+        { "text": "mā", "stress": "high" },
+        { "text": "kar", "stress": "high" },
+        { "text": "ma", "stress": "low" },
+        { "text": "pha", "stress": "low" },
+        { "text": "la", "stress": "low" },
+        { "text": "he", "stress": "high" },
+        { "text": "tur", "stress": "high" },
+        { "text": "bhūr", "stress": "high" }
+      ],
+      [
+        { "text": "mā", "stress": "high" },
+        { "text": "te", "stress": "high" },
+        { "text": "saṅ", "stress": "high" },
+        { "text": "gos", "stress": "high" },
+        { "text": "tva", "stress": "low" },
+        { "text": "kar", "stress": "high" },
+        { "text": "ma", "stress": "low" },
+        { "text": "ṇi", "stress": "high" }
+      ]
+    ]
+  },
+  {
+    "id": "bg-4-7",
+    "reference": "Bhagavad Gita 4.7",
+    "title": "Yadā Yadā Hi Dharmasya",
+    "devanagari": "यदा यदा हि धर्मस्य ग्लानिर्भवति भारत।\nअभ्युत्थानमधर्मस्य तदात्मानं सृजाम्यहम्॥",
+    "roman": "yadā yadā hi dharmasya glānir bhavati bhārata\nabhyutthānam adharmasya tadātmānaṃ sṛjāmy aham",
+    "meaning": "Whenever and wherever there is a decline in righteousness, O Bharata, and a predominant rise of unrighteousness — at that time I manifest myself on earth.",
+    "audioUrl": null,
+    "tip": "Push extra breath out on the aspirated 'bh' and 'dh' sounds in bhavati and dharmasya — they need an audible puff of air, unlike English b/d.",
+    "syllables": [
+      [
+        { "text": "ya", "stress": "low" },
+        { "text": "dā", "stress": "high" },
+        { "text": "ya", "stress": "low" },
+        { "text": "dā", "stress": "high" },
+        { "text": "hi", "stress": "low" },
+        { "text": "dhar", "stress": "high" },
+        { "text": "ma", "stress": "high" },
+        { "text": "sya", "stress": "high" }
+      ],
+      [
+        { "text": "glā", "stress": "high" },
+        { "text": "nir", "stress": "high" },
+        { "text": "bha", "stress": "low" },
+        { "text": "va", "stress": "low" },
+        { "text": "ti", "stress": "low" },
+        { "text": "bhā", "stress": "high" },
+        { "text": "ra", "stress": "low" },
+        { "text": "ta", "stress": "high" }
+      ],
+      [
+        { "text": "a", "stress": "high" },
+        { "text": "bhyut", "stress": "high" },
+        { "text": "thā", "stress": "high" },
+        { "text": "na", "stress": "low" },
+        { "text": "ma", "stress": "low" },
+        { "text": "dhar", "stress": "high" },
+        { "text": "ma", "stress": "high" },
+        { "text": "sya", "stress": "high" }
+      ],
+      [
+        { "text": "ta", "stress": "low" },
+        { "text": "dāt", "stress": "high" },
+        { "text": "mā", "stress": "high" },
+        { "text": "naṃ", "stress": "high" },
+        { "text": "sṛ", "stress": "low" },
+        { "text": "jām", "stress": "high" },
+        { "text": "ya", "stress": "low" },
+        { "text": "ham", "stress": "high" }
+      ]
+    ]
+  },
+  {
+    "id": "bg-6-5",
+    "reference": "Bhagavad Gita 6.5",
+    "title": "Uddhared Ātmanātmānaṃ",
+    "devanagari": "उद्धरेदात्मनात्मानं नात्मानमवसादयेत्।\nआत्मैव ह्यात्मनो बन्धुरात्मैव रिपुरात्मनः॥",
+    "roman": "uddhared ātmanātmānaṃ nātmānam avasādayet\nātmaiva hy ātmano bandhur ātmaiva ripur ātmanaḥ",
+    "meaning": "One must elevate, not degrade, oneself by one's own mind. The mind alone is the friend of the conditioned soul, and the mind alone is its enemy.",
+    "audioUrl": null,
+    "tip": "Blend 't' and 'm' into one quick sound in ātma — don't let a vowel sneak in between them.",
+    "syllables": [
+      [
+        { "text": "ud", "stress": "high" },
+        { "text": "dha", "stress": "low" },
+        { "text": "re", "stress": "high" },
+        { "text": "dāt", "stress": "high" },
+        { "text": "ma", "stress": "low" },
+        { "text": "nāt", "stress": "high" },
+        { "text": "mā", "stress": "high" },
+        { "text": "naṃ", "stress": "high" }
+      ],
+      [
+        { "text": "nāt", "stress": "high" },
+        { "text": "mā", "stress": "high" },
+        { "text": "na", "stress": "low" },
+        { "text": "ma", "stress": "low" },
+        { "text": "va", "stress": "low" },
+        { "text": "sā", "stress": "high" },
+        { "text": "da", "stress": "low" },
+        { "text": "yet", "stress": "high" }
+      ],
+      [
+        { "text": "āt", "stress": "high" },
+        { "text": "mai", "stress": "high" },
+        { "text": "va", "stress": "high" },
+        { "text": "hyāt", "stress": "high" },
+        { "text": "ma", "stress": "low" },
+        { "text": "no", "stress": "high" },
+        { "text": "ban", "stress": "high" },
+        { "text": "dhur", "stress": "high" }
+      ],
+      [
+        { "text": "āt", "stress": "high" },
+        { "text": "mai", "stress": "high" },
+        { "text": "va", "stress": "low" },
+        { "text": "ri", "stress": "low" },
+        { "text": "pur", "stress": "high" },
+        { "text": "āt", "stress": "high" },
+        { "text": "ma", "stress": "low" },
+        { "text": "naḥ", "stress": "high" }
+      ]
+    ]
+  }
+]

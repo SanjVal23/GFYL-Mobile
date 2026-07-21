@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthScreen } from './screens/AuthScreen';
 import AppNavigator from './navigation/AppNavigator';
+import StartupAnimation from './components/StartupAnimation';
 import { User } from './types';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { UserProvider } from './contexts/UserContext';
@@ -15,11 +17,13 @@ const mapSessionUser = (sessionUser: any): User => ({
   email: sessionUser.email || '',
   role: sessionUser.user_metadata?.role || 'student',
   accessTier: sessionUser.user_metadata?.accessTier || 'free',
+  avatarUrl: sessionUser.user_metadata?.avatar_url || sessionUser.user_metadata?.picture || undefined,
 });
 
 function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [isGuestSession, setIsGuestSession] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const isGuestSessionRef = useRef(false);
   const { isDarkMode } = useTheme();
 
@@ -78,7 +82,8 @@ function AppContent() {
     return (
       <>
         <AuthScreen onLogin={handleLogin} />
-        <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+        <StatusBar style="dark" />
+        {showSplash && <StartupAnimation onFinish={() => setShowSplash(false)} />}
       </>
     );
   }
@@ -90,17 +95,20 @@ function AppContent() {
           <AppNavigator onLogout={handleLogout} />
         </NavigationContainer>
       </UserProvider>
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      <StatusBar style={showSplash ? 'dark' : (isDarkMode ? 'light' : 'dark')} />
+      {showSplash && <StartupAnimation onFinish={() => setShowSplash(false)} />}
     </>
   );
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <LocalizationProvider>
-        <AppContent />
-      </LocalizationProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <LocalizationProvider>
+          <AppContent />
+        </LocalizationProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Course } from '../types';
 import { useLocalization } from '../contexts/LocalizationContext';
+import { useTheme, ThemeColors } from '../contexts/ThemeContext';
 
 const coursesData: Course[] = [];
 
@@ -19,20 +19,29 @@ export default function CoursesScreen() {
   const navigation = useNavigation<any>();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const { t } = useLocalization();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
-    <LinearGradient colors={['#172554', '#1e3a8a']} style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.header}>
+        {navigation.canGoBack() && (
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+            <Ionicons name="chevron-back" size={22} color={colors.text} />
+          </TouchableOpacity>
+        )}
         <Text style={styles.headerTitle}>{t('courses.title', 'Marketing')}</Text>
         <Text style={styles.headerSubtitle}>
           {t('courses.subtitle', 'Gita for Youth Leadership · Outreach & Campaigns')}
         </Text>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {coursesData.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="hourglass-outline" size={48} color="#94a3b8" />
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="hourglass-outline" size={32} color={colors.text} />
+            </View>
             <Text style={styles.emptyTitle}>{t('courses.comingSoon', 'Coming Soon')}</Text>
             <Text style={styles.emptyText}>
               {t('courses.comingSoonText', 'Marketing content is on the way. Check back soon for new campaigns and resources.')}
@@ -44,20 +53,21 @@ export default function CoursesScreen() {
               key={course.id}
               style={styles.courseCard}
               onPress={() => setSelectedCourse(course)}
+              activeOpacity={0.85}
             >
               <View style={styles.courseIcon}>
-                <Ionicons name={course.icon as any} size={32} color="#fff" />
+                <Ionicons name={course.icon as any} size={28} color={colors.accentText} />
               </View>
               <View style={styles.courseInfo}>
                 <Text style={styles.courseTitle}>{course.title}</Text>
                 <Text style={styles.courseDescription}>{course.description}</Text>
                 <View style={styles.courseStats}>
                   <View style={styles.stat}>
-                    <Ionicons name="calendar-outline" size={16} color="#94a3b8" />
+                    <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
                     <Text style={styles.statText}>{course.duration}</Text>
                   </View>
                   <View style={styles.stat}>
-                    <Ionicons name="people-outline" size={16} color="#94a3b8" />
+                    <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
                     <Text style={styles.statText}>{course.lessons} outreach channels</Text>
                   </View>
                 </View>
@@ -72,12 +82,12 @@ export default function CoursesScreen() {
                 </View>
                 {course.completed && (
                   <View style={styles.completedBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color="#34d399" />
+                    <Ionicons name="checkmark-circle" size={14} color={colors.success} />
                     <Text style={styles.completedText}>Completed</Text>
                   </View>
                 )}
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#fb923c" />
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
             </TouchableOpacity>
           ))
         )}
@@ -96,24 +106,24 @@ export default function CoursesScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{selectedCourse?.title}</Text>
               <TouchableOpacity onPress={() => setSelectedCourse(null)}>
-                <Ionicons name="close" size={28} color="#fff" />
+                <Ionicons name="close" size={26} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.modalBody}>
               <View style={styles.modalIcon}>
-                <Ionicons name={selectedCourse?.icon as any} size={40} color="#fff" />
+                <Ionicons name={selectedCourse?.icon as any} size={36} color={colors.accentText} />
               </View>
               <Text style={styles.modalDescription}>
                 {selectedCourse?.description}
               </Text>
               <View style={styles.modalStats}>
                 <View style={styles.modalStat}>
-                  <Ionicons name="calendar-outline" size={20} color="#94a3b8" />
+                  <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
                   <Text style={styles.modalStatText}>{selectedCourse?.duration}</Text>
                 </View>
                 <View style={styles.modalStat}>
-                  <Ionicons name="people-outline" size={20} color="#94a3b8" />
+                  <Ionicons name="people-outline" size={18} color={colors.textSecondary} />
                   <Text style={styles.modalStatText}>
                     {selectedCourse?.lessons} outreach channels
                   </Text>
@@ -151,6 +161,7 @@ export default function CoursesScreen() {
                     courseDescription: selectedCourse?.description,
                   });
                 }}
+                activeOpacity={0.85}
               >
                 <Text style={styles.continueButtonText}>View Campaign Plan</Text>
               </TouchableOpacity>
@@ -162,46 +173,63 @@ export default function CoursesScreen() {
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
+    padding: 24,
     paddingTop: 60,
   },
+  backButton: {
+    position: 'absolute',
+    left: 20,
+    top: 60,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.text,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   scrollView: {
     flex: 1,
+    paddingHorizontal: 20,
   },
   courseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e40af',
-    marginHorizontal: 15,
-    marginBottom: 15,
-    padding: 15,
-    borderRadius: 16,
-    gap: 15,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 14,
+    padding: 16,
+    borderRadius: 18,
+    gap: 14,
   },
   courseIcon: {
     width: 56,
     height: 56,
-    borderRadius: 12,
-    backgroundColor: '#fb923c',
+    borderRadius: 16,
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -210,38 +238,47 @@ const styles = StyleSheet.create({
   },
   courseTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.text,
   },
   emptyState: {
-    marginHorizontal: 20,
-    marginTop: 40,
-    padding: 24,
-    borderRadius: 16,
-    backgroundColor: '#1e40af',
+    marginTop: 30,
+    padding: 28,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
   },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 12,
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
     marginBottom: 6,
   },
   emptyText: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
   courseDescription: {
     fontSize: 13,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   courseStats: {
     flexDirection: 'row',
-    gap: 15,
+    gap: 14,
     marginTop: 8,
   },
   stat: {
@@ -251,7 +288,7 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: colors.textSecondary,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -260,23 +297,23 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     fontSize: 12,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
   },
   progressPercentage: {
     fontSize: 12,
-    fontWeight: 'bold',
-    color: '#fb923c',
+    fontWeight: '700',
+    color: colors.text,
   },
   progressBar: {
     height: 6,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 3,
     marginTop: 6,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     borderRadius: 3,
   },
   completedBadge: {
@@ -287,19 +324,19 @@ const styles = StyleSheet.create({
   },
   completedText: {
     fontSize: 12,
-    color: '#34d399',
+    color: colors.success,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#1e3a8a',
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
     width: '100%',
     maxWidth: 500,
   },
@@ -309,37 +346,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e40af',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
     flex: 1,
   },
   modalBody: {
     padding: 20,
   },
   modalIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    backgroundColor: '#fb923c',
+    width: 76,
+    height: 76,
+    borderRadius: 20,
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   modalDescription: {
-    fontSize: 16,
-    color: '#e2e8f0',
+    fontSize: 15,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 15,
+    marginBottom: 16,
   },
   modalStats: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 30,
+    gap: 28,
     marginBottom: 20,
   },
   modalStat: {
@@ -349,7 +386,7 @@ const styles = StyleSheet.create({
   },
   modalStatText: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
   },
   modalProgress: {
     flexDirection: 'row',
@@ -358,41 +395,41 @@ const styles = StyleSheet.create({
   },
   modalProgressLabel: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
   },
   modalProgressPercentage: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#fb923c',
+    fontWeight: '700',
+    color: colors.text,
   },
   modalProgressBar: {
     height: 8,
-    backgroundColor: '#334155',
+    backgroundColor: colors.surfaceAlt,
     borderRadius: 4,
     marginBottom: 20,
     overflow: 'hidden',
   },
   modalProgressFill: {
     height: '100%',
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     borderRadius: 4,
   },
   modalInfo: {
     fontSize: 14,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 20,
   },
   continueButton: {
-    backgroundColor: '#fb923c',
+    backgroundColor: colors.accent,
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 12,
   },
   continueButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontWeight: '700',
+    color: colors.accentText,
     textAlign: 'center',
   },
   syllabusButton: {
@@ -400,7 +437,8 @@ const styles = StyleSheet.create({
   },
   syllabusButtonText: {
     fontSize: 15,
-    color: '#cbd5e1',
+    color: colors.textSecondary,
     textAlign: 'center',
+    fontWeight: '600',
   },
 });

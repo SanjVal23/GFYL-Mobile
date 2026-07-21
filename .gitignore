@@ -45,3 +45,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Claude Code local state
+.claude/
+
+# Supabase CLI local project link/version cache
+supabase/.temp/

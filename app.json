@@ -2,6 +2,7 @@
   "expo": {
     "name": "Gita For Youth Leadership",
     "slug": "gita-for-youth-leadership",
+    "owner": "soham_developer",
     "scheme": "gfylmobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,6 +18,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.gfyl.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -29,7 +31,18 @@
     },
     "plugins": [
       "expo-font",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone so you can practice reciting shlokas in Gita Warriors."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e13eb3f2-08d8-45cb-a714-4fac66fdf476"
+      }
+    }
   }
 }

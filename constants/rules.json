@@ -1,0 +1,40 @@
+{
+  "vowels": {
+    "short": ["a", "i", "u", "ṛ"],
+    "long": ["ā", "ī", "ū", "ṝ", "e", "ai", "o", "au"],
+    "note": "e, ai, o, au are always pronounced long (guru) in Sanskrit, even though they look like single letters."
+  },
+  "mahaprana": {
+    "description": "Aspirated consonants — pronounced with an audible puff of breath, distinct from their unaspirated pair.",
+    "pairs": [
+      { "unaspirated": "k", "aspirated": "kh" },
+      { "unaspirated": "g", "aspirated": "gh" },
+      { "unaspirated": "c", "aspirated": "ch" },
+      { "unaspirated": "j", "aspirated": "jh" },
+      { "unaspirated": "ṭ", "aspirated": "ṭh" },
+      { "unaspirated": "ḍ", "aspirated": "ḍh" },
+      { "unaspirated": "t", "aspirated": "th" },
+      { "unaspirated": "d", "aspirated": "dh" },
+      { "unaspirated": "p", "aspirated": "ph" },
+      { "unaspirated": "b", "aspirated": "bh" }
+    ]
+  },
+  "retroflexConsonants": {
+    "description": "Pronounced with the tongue curled back to the roof of the mouth, distinct from the dental version of the same letter.",
+    "letters": ["ṭ", "ṭh", "ḍ", "ḍh", "ṇ", "ṣ"]
+  },
+  "stressRules": {
+    "description": "A syllable (guru / heavy) is stressed longer when it has a long vowel, is followed by a conjunct consonant, or ends in an anusvara (ṃ) or visarga (ḥ). Otherwise it is light (laghu) and pronounced quickly. The last syllable of each quarter-verse (pada) is treated as heavy by convention.",
+    "stressLevels": {
+      "high": "guru (heavy) — hold the syllable longer",
+      "mid": "transitional — natural conversational length",
+      "low": "laghu (light) — pronounced quickly and lightly"
+    }
+  },
+  "commonMistakes": [
+    "Flattening aspirated consonants (bh, dh, kh, gh, ph) into their unaspirated pair.",
+    "Not distinguishing retroflex ṇ/ṭ/ḍ from their dental counterparts.",
+    "Rushing through conjunct consonants instead of giving them their full heavy length.",
+    "Dropping the visarga (ḥ) at the end of words instead of a soft breathy release."
+  ]
+}
